@@ -1,0 +1,21 @@
+{
+  "name": "ops-action-group",
+  "version": "1.0.0",
+  "description": "proxy handler of ops agent actions",
+  "main": "app.js",
+  "repository": "https://github.com/InitialXW/aws-health-integration",
+  "author": "seanxw",
+  "license": "MIT",
+  "scripts": {
+    "unit": "jest",
+    "lint": "eslint '*.ts' --quiet --fix",
+    "compile": "tsc",
+    "test": "npm run compile && npm run unit"
+  },
+  "dependencies": {
+    "esbuild": "^0.14.14",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+  }
+}

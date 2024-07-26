@@ -1,0 +1,20 @@
+{
+  "name": "callback-event",
+  "version": "1.0.0",
+  "description": "call back with given task token",
+  "main": "app.js",
+  "repository": "https://github.com/InitialXW/aws-health-integration.git",
+  "author": "seanxw",
+  "license": "MIT",
+  "scripts": {
+    "unit": "jest",
+    "lint": "eslint '*.ts' --quiet --fix",
+    "compile": "tsc",
+    "test": "npm run compile && npm run unit"
+  },
+  "dependencies": {
+    "esbuild": "^0.14.14"
+  },
+  "devDependencies": {
+  }
+}

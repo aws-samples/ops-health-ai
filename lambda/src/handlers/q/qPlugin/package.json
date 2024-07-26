@@ -1,0 +1,21 @@
+{
+  "name": "q-plugin",
+  "version": "1.0.0",
+  "description": "Amazon Q plugins for aiops",
+  "main": "app.js",
+  "repository": "https://github.com/InitialXW/aiops",
+  "author": "seanxw",
+  "license": "MIT",
+  "scripts": {
+    "unit": "jest",
+    "lint": "eslint '*.ts' --quiet --fix",
+    "compile": "tsc",
+    "test": "npm run compile && npm run unit"
+  },
+  "dependencies": {
+    "esbuild": "^0.14.14",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+  }
+}

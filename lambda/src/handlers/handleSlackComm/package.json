@@ -1,0 +1,21 @@
+{
+  "name": "handle-slack-comm",
+  "version": "1.0.0",
+  "description": "handle comms with chat clients",
+  "main": "app.js",
+  "repository": "https://github.com/InitialXW/aws-health-integration",
+  "author": "seanxw",
+  "license": "MIT",
+  "scripts": {
+    "unit": "jest",
+    "lint": "eslint '*.ts' --quiet --fix",
+    "compile": "tsc",
+    "test": "npm run compile && npm run unit"
+  },
+  "dependencies": {
+    "esbuild": "^0.14.14",
+    "@slack/web-api": "^7.2.0"
+  },
+  "devDependencies": {
+  }
+}

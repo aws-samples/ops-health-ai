@@ -1,0 +1,269 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Utility functions for AiOps
+
+Resources:
+  PopTranscriptDbFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/popTranscriptDb/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 120
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          TABLE_NAME: ""
+          SQS_URL: ""
+
+  GetTranscriptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/getTranscript/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 120
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          S3_NAME: ""
+
+  SlackMeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/slackMe/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 120
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          SLACK_ACCESS_TOKEN: 'string'
+
+  SecHubReportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/secHubReport/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 120
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          S3_NAME: ""
+
+  IngestSpeakerKbFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/ingestSpeakerKb/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          KNOWLEDGE_BASE_ID: "string"
+          KB_DATA_SOURCE_ID": "string"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
+  IngestOpsHealthKbFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/ingestOpsHealthKb/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          KNOWLEDGE_BASE_ID: "string"
+          KB_DATA_SOURCE_ID": "string"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
+  EventToKnowledgeBaseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/eventToKnowledgeBase/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          TARGET_S3_REGION: "string"
+          OPS_HEALTH_S3: "string"
+          TA_FINDINGS_s3: "string"
+          SEC_FINDINGs_S3: "string"
+
+  OpsHealthActionGroupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/opsHealthActionGroup/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          KENDRA_INDEX_ID: "string"
+          EVENT_TABLE: "string"
+          TICKET_TABLE: "string"
+          HEALTH_KB_ID: "string"
+          SEC_KB_ID: "string"
+          LLM_MODEL_ARN: "string"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
+  HandleSlackCommFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/handleSlackComm/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          SLACK_APP_VERIFICATION_TOKEN: 'string'
+          SLACK_ACCESS_TOKEN: 'string'
+          INTEGRATION_EVENT_BUS_NAME:  "string"
+          EVENT_DOMAIN_PREFIX: ""
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
+  CallbackEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/callbackEvent/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          CALLBACK_URL: ""
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
+  InvokeAgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/invokeAgent/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          AGENT_ID: "string"
+          AGENT_ALIAS_ID: "string"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
+  QPluginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/q/qPlugin/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+        # - arm64
+      Environment:
+        Variables:
+          AGENT_ALIAS_ID: "string"
+          AGENT_ID: "string"
+          KB_ID: "string"
+          LLM_MODEL_ARN: "string"
+          TICKET_TABLE: "string"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+

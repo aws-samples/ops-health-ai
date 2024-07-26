@@ -1,0 +1,21 @@
+{
+  "name": "ingest-kb",
+  "version": "1.0.0",
+  "description": "ingest by sync knowledge base with s3 source",
+  "main": "app.js",
+  "repository": "",
+  "author": "seanxw",
+  "license": "MIT",
+  "scripts": {
+    "unit": "jest",
+    "lint": "eslint '*.ts' --quiet --fix",
+    "compile": "tsc",
+    "test": "npm run compile && npm run unit"
+  },
+  "dependencies": {
+    "esbuild": "^0.14.14",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+  }
+}

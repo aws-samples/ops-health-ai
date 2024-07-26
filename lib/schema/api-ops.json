@@ -1,0 +1,317 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations event management API for AiBuddy app",
+    "version": "1.0.0",
+    "description": "Operations event management API for AiBuddy app"
+  },
+  "paths": {
+    "/ask-knowledge-base": {
+      "post": {
+        "summary": "An agent that answers any questions about operational health events/issues, and security hub findings/issues/risks.",
+        "description": "An agent who knows details about operational health events/issues, lifecycle notifications, and security hub findings/issues/risks.The supported knowledge bases are 1.'opsHealth' for operational health event knowledge base, 2.'secHub' for security hub finding knowledge base.",
+        "operationId": "AskKnowledgeBase",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "A natural language query with all the necessary conversation context to query the knowledge base"
+                  },
+                  "kbName": {
+                    "type": "string",
+                    "description": "the name of knowledge base name, 'opsHealth' for operational health event knowledge base, 'secHub' for security hub finding knowledge base"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answers to the question asked based on event knowledge base.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Output": {
+                      "type": "object",
+                      "properties": {
+                        "Text": {
+                          "type": "string",
+                          "description": "Answers to the question asked based on event knowledge base."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ask-aws": {
+      "post": {
+        "summary": "An AWS consultant for any questions about how-to and best practices",
+        "description": "A AWS consultant who has the knowledge about AWS documentations and can provide guidance on how-to and best practices related to AWS.",
+        "operationId": "AskAws",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string",
+                    "description": "content of the question"
+                  },
+                  "chat-history": {
+                    "type": "string",
+                    "description": "optional, contains chat history in text if needed for additional context of the question"
+                  }
+                },
+                "required": [
+                  "question"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answers to the question asked based on consultant knowledge.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Output": {
+                      "type": "object",
+                      "properties": {
+                        "Text": {
+                          "type": "string",
+                          "description": "Answers to the question asked based on consultant knowledge."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accept-event": {
+      "post": {
+        "summary": "Function to either accept or discharge an event",
+        "description": "Take action to either accept or discharge an event",
+        "operationId": "AcceptEvent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "To accept event, call with 'accept' status. To discharge event, call with 'discharge' status."
+                  },
+                  "taskToken": {
+                    "type": "string",
+                    "description": "taskToken needed to make function calls."
+                  }
+                },
+                "required": [
+                  "status", "taskToken"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "task complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Output": {
+                      "type": "object",
+                      "properties": {
+                        "body": {
+                          "type": "string",
+                          "description": "HTTP response details."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/create-ticket": {
+      "post": {
+        "summary": "Function to create an issue ticket with specified content",
+        "description": "Take action to create an issue ticket with specified content",
+        "operationId": "CreateTicket",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "eventPk": {
+                    "type": "string",
+                    "description": "The EventPk of the ticket is associated with."
+                  },
+                  "ticketTitle": {
+                    "type": "string",
+                    "description": "The title of the ticket"
+                  },
+                  "ticketDetail": {
+                    "type": "string",
+                    "description": "Details about the issue or event the ticket is about."
+                  },
+                  "recommendedAction": {
+                    "type": "string",
+                    "description": "Guideline information about how to take remediate the issue described, examples, and best practices."
+                  },
+                  "severity": {
+                    "type": "string",
+                    "description": "severity level in number ranging from 1-5, with 1 as the lowest and 5 the highest"
+                  },
+                  "assignee": {
+                    "type": "string",
+                    "description": "The name of the team or person assigned to the ticket"
+                  },
+                  "progress": {
+                    "type": "string",
+                    "description": "The progress status of the remediation action to the ticket"
+                  }
+                },
+                "required": [
+                  "eventPk", "ticketTitle"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "task complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Output": {
+                      "type": "object",
+                      "properties": {
+                        "body": {
+                          "type": "string",
+                          "description": "HTTP response details."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/list-tickets": {
+      "get": {
+        "summary": "Get a list of the tickets by a specific eventPk, the eventPk is the value of the eventArn of the related event/issue/finding/risk",
+        "description": "Get a list of the tickets by a specific eventPk, the returned result contains details for all ticket fields.",
+        "operationId": "ListTickets",
+        "parameters": [
+          {
+            "name": "eventPk",
+            "in": "path",
+            "description": "The 'eventArn' of an operational health event/issue, or the 'FindingId' of an security hub finding/risk.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Query successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "PK": {
+                        "type": "string",
+                        "description": "Unique ID of the ticket"
+                      },
+                      "eventPk": {
+                        "type": "string",
+                        "description": "The EventPk of the ticket is associated with."
+                      },
+                      "ticketTitle": {
+                        "type": "string",
+                        "description": "The title of the ticket"
+                      },
+                      "ticketDetail": {
+                        "type": "string",
+                        "description": "Details about the issue or event the ticket is about."
+                      },
+                      "recommendedAction": {
+                        "type": "string",
+                        "description": "Guideline information about how to take remediate the issue described, examples, and best practices."
+                      },
+                      "severity": {
+                        "type": "string",
+                        "description": "severity level in number ranging from 1-5, with 1 as the lowest and 5 the highest"
+                      },
+                      "assignee": {
+                        "type": "string",
+                        "description": "The name of the team or person assigned to the ticket"
+                      },
+                      "progress": {
+                        "type": "string",
+                        "description": "The progress status of the remediation action to the ticket"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "description": "The timestamp when the ticket was created"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Operation ticket management API for Hyper-Conn app",
+        "version": "1.0.0",
+        "description": "Operation ticket management API for Hyper-Conn app"
+    },
+    "servers": [
+        {
+            "url": "https://2hxp57xf2l.execute-api.us-east-1.amazonaws.com/prod"
+        }
+    ],
+    "paths": {
+        "/create-ticket": {
+            "get": {
+                "summary": "Create ticket for a given event ARN",
+                "description": "Create a tickets for a given event ARN",
+                "operationId": "CreateTicket",
+                "parameters": [
+                    {
+                        "name": "eventArn",
+                        "in": "path",
+                        "description": "eventArn of the event, the eventArn must be reformatted so that it contains only the substring of the original eventArn that comes after the 2 consecutive colon symbols. If there is no 2 consecutive colon symbols in the original eventArn, use the original format instead.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ticket creation successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "type": "string",
+                                            "description": "HTTP response details."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
