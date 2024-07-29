@@ -64,9 +64,6 @@ const dispatchRequest = async (requestParams: any): Promise<ApiGwResponse> => {
     });
     if (slackResp.ok && slackResp.messages) {
       const promptConversationHistory = [];
-      // The last message in the threadHistory result is also the current message, so
-      // to avoid duplicating chatHistory with the current message we skip the
-      // last element in threadHistory message array.
       for (const m of slackResp.messages.slice(0, -1)) {
         if (!m.user) {
           continue;

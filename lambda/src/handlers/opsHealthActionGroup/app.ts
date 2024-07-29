@@ -218,22 +218,8 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
       const queryResponse: RetrieveCommandOutput = await kendra.send(queryInput);
 
       let searchResults = await queryResponse['ResultItems'] || [];
-      // for await (let item of searchResults) {
-      //   let sourceUri = null
-      //   if (item['DocumentAttributes']) {
-      //     for (let attribute of item['DocumentAttributes']) {
-      //       if (attribute['Key'] == '_source_uri') {
-      //         sourceUri = (attribute['Value'] || {})['StringValue'] || ''
-      //       }
-      //       if (sourceUri) {
-      //         console.log(`Amazon Kendra Source URI: ${sourceUri}`)
-      //         item['_source_uri'] = sourceUri
-      //       }
-      //     }
-      //   }
-      // }
 
-      // /*** using Claud model*************************** */
+      // /*** uncomment below section if want to use Anthropic Claud model*************************** */
       // let promptData = `
       //   Human:
       //   You are a details oriented AI advisor. Your job is to provide advice on the best practices and step-by-step guidances for the topic asked by the user.

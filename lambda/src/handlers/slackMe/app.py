@@ -30,7 +30,7 @@ def lambda_handler(event, context):
             }
 
     response = slack_client.chat_postMessage(**kwargs)
-    # print('!!!!!!', response.data)
+    # print('DEBUG: ', response.data)
     # thread_ts = response.data['ts']
     if response['ok']:
         return {
