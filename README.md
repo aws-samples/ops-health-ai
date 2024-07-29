@@ -53,8 +53,8 @@
 ## Deployment steps
 ### Copy repo to your local directory
 ```zsh
-git clone https://github.com/InitialXW/aws-health-integration.git
-cd aws-health-integration
+git clone https://github.com/aws-samples/ops-health-ai.git
+cd ops-health-ai
 npm install
 cdk bootstrap aws://<your admin AWS account id>/<region where you Organization is> aws://<your worker AWS account id>/<region where your worker services to be>
 cd lambda/src
