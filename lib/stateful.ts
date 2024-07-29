@@ -7,16 +7,13 @@ import { Construct } from 'constructs';
 
 export interface StatefulProps extends cdk.StackProps {
   scopedAccountIds: string[]
-  // qAppRoleArn: string
 }
 
 export class StatefulStack extends cdk.Stack {
-  public readonly transcriptBucket: s3.Bucket;
   public readonly opsHealthBucket: s3.Bucket;
   public readonly secFindingsBucket: s3.Bucket;
   public readonly taFindingsBucket: s3.Bucket;
-  public readonly videoTranscriptTable: dynamodb.ITable
-  public readonly transcriptTaskTable: dynamodb.ITable
+  public readonly opsEventLakeBucket: s3.Bucket;
   public readonly eventManagementTable: dynamodb.ITable
   public readonly ticketManagementTable: dynamodb.ITable
   public readonly aiOpsEventBus: events.IEventBus
@@ -26,20 +23,81 @@ export class StatefulStack extends cdk.Stack {
 
     let listOfAcctPrincipals = props.scopedAccountIds.map(id => new iam.AccountPrincipal(id));
 
-    this.transcriptBucket = new s3.Bucket(this, 'TranscriptBucket', {
-      bucketName: `aws-transcript-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
+    /*** create role QuickSight for event record visualization, QS dashboard is not implemented in this project but foundation is laid for illustration, needs to be changed in QS console settings to make QS use this role. ***/
+    const qsRole = new iam.Role(this, 'MyQuickSightServiceRole', {
+      assumedBy: new iam.ServicePrincipal('quicksight.amazonaws.com'),
+    });
+    qsRole.addToPolicy(new iam.PolicyStatement({
+      resources: ['*'],
+      actions: [
+        "athena:BatchGetQueryExecution",
+        "athena:CancelQueryExecution",
+        "athena:GetCatalogs",
+        "athena:GetExecutionEngine",
+        "athena:GetExecutionEngines",
+        "athena:GetNamespace",
+        "athena:GetNamespaces",
+        "athena:GetQueryExecution",
+        "athena:GetQueryExecutions",
+        "athena:GetQueryResults",
+        "athena:GetQueryResultsStream",
+        "athena:GetTable",
+        "athena:GetTables",
+        "athena:ListQueryExecutions",
+        "athena:RunQuery",
+        "athena:StartQueryExecution",
+        "athena:StopQueryExecution",
+        "athena:ListWorkGroups",
+        "athena:ListEngineVersions",
+        "athena:GetWorkGroup",
+        "athena:GetDataCatalog",
+        "athena:GetDatabase",
+        "athena:GetTableMetadata",
+        "athena:ListDataCatalogs",
+        "athena:ListDatabases",
+        "athena:ListTableMetadata",
+        "iam:List*",
+        "rds:Describe*",
+        "redshift:Describe*",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "glue:*"
+      ],
+    }));
+    /******************************************************************************* */
+
+    /****************** S3 bucket to hold all ops event records**************** */
+    this.opsEventLakeBucket = new s3.Bucket(this, 'OpsEventLakeBucket', {
+      bucketName: `ops-event-lake-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
+      eventBridgeEnabled: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      eventBridgeEnabled: true
+      lifecycleRules: [
+        {
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
+          enabled: true,
+          prefix: `ops-events`,
+          expiration: cdk.Duration.days(2)
+        },
+        {
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
+          enabled: true,
+          prefix: 'eventhose-errors',
+          expiration: cdk.Duration.days(2)
+        },
+        {
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
+          enabled: true,
+          prefix: 'athena-query-results',
+          expiration: cdk.Duration.days(2)
+        }
+      ]
     });
 
-    this.transcriptBucket.addToResourcePolicy(
+    this.opsEventLakeBucket.addToResourcePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        principals: [
-          ...listOfAcctPrincipals,
-          // new iam.ArnPrincipal(props.qAppRoleArn)
-        ],
+        principals: [...listOfAcctPrincipals, qsRole],
         actions: [
           "s3:AbortMultipartUpload",
           "s3:GetBucketLocation",
@@ -49,9 +107,10 @@ export class StatefulStack extends cdk.Stack {
           "s3:PutObject",
           "s3:PutObjectAcl"
         ],
-        resources: [this.transcriptBucket.arnForObjects("*"), this.transcriptBucket.bucketArn],
+        resources: [this.opsEventLakeBucket.arnForObjects("*"), this.opsEventLakeBucket.bucketArn]
       }),
     );
+    /******************************************************************************* */
 
     this.opsHealthBucket = new s3.Bucket(this, 'OpsHealthBucket', {
       bucketName: `aws-ops-health-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
@@ -64,8 +123,7 @@ export class StatefulStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         principals: [
-          ...listOfAcctPrincipals,
-          // new iam.ArnPrincipal(props.qAppRoleArn)
+          ...listOfAcctPrincipals
         ],
         actions: [
           "s3:AbortMultipartUpload",
@@ -91,8 +149,7 @@ export class StatefulStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         principals: [
-          ...listOfAcctPrincipals,
-          // new iam.ArnPrincipal(props.qAppRoleArn)
+          ...listOfAcctPrincipals
         ],
         actions: [
           "s3:AbortMultipartUpload",
@@ -118,8 +175,7 @@ export class StatefulStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         principals: [
-          ...listOfAcctPrincipals,
-          // new iam.ArnPrincipal(props.qAppRoleArn)
+          ...listOfAcctPrincipals
         ],
         actions: [
           "s3:AbortMultipartUpload",
@@ -133,19 +189,6 @@ export class StatefulStack extends cdk.Stack {
         resources: [this.taFindingsBucket.arnForObjects("*"), this.taFindingsBucket.bucketArn],
       }),
     );
-
-    /******************* DynamoDB Table to hold channel and video ids to trigger scraping tasks *****************/
-    this.transcriptTaskTable = new dynamodb.Table(this, 'TranscriptTaskTable', {
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      partitionKey: {
-        name: "PK",
-        type: dynamodb.AttributeType.STRING
-      },
-    });
-    new cdk.CfnOutput(this, "TranscriptTaskTableName", { value: this.transcriptTaskTable.tableName })
-    /*************************************************************************************** */
 
     /****** Dedicated event bus for AiOps integrated events processing microservices*************** */
     this.aiOpsEventBus = new events.EventBus(this, "AiOpsEventBus", {
@@ -171,28 +214,6 @@ export class StatefulStack extends cdk.Stack {
     new cdk.CfnOutput(this, "aiOpsEventBusArn", { value: this.aiOpsEventBus.eventBusArn })
     /******************************************************************************* */
 
-    /******************* DynamoDB Table to hold populated tube video ids *****************/
-    this.videoTranscriptTable = new dynamodb.Table(this, 'VideoTranscriptTable', {
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      partitionKey: {
-        name: "VideoId",
-        type: dynamodb.AttributeType.STRING
-      },
-      // sortKey: {
-      //     name: "VideoId",
-      //     type: dynamodb.AttributeType.STRING
-      // },
-    });
-    // videoTranscriptTable.addLocalSecondaryIndex({
-    //     indexName: 'statusIndex',
-    //     sortKey: { name: 'status', type: dynamodb.AttributeType.STRING },
-    //     projectionType: dynamodb.ProjectionType.ALL,
-    // });
-    new cdk.CfnOutput(this, "VideoTranscriptTableName", { value: this.videoTranscriptTable.tableName })
-    /*************************************************************************************** */
-
     /******************* DynamoDB Table to track event reaction status *****************/
     this.eventManagementTable = new dynamodb.Table(this, 'EventManagementTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -205,7 +226,7 @@ export class StatefulStack extends cdk.Stack {
     });
     /*************************************************************************************** */
 
-    /******************* DynamoDB Table to track issue ticket status *****************/
+    /******************* DynamoDB Table to mock up issue ticket tool *****************/
     this.ticketManagementTable = new dynamodb.Table(this, 'TicketManagementTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecovery: true,

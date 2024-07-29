@@ -70,7 +70,6 @@ CDK_ADMIN_REGION=<replace with the region where your Organization is, e.g. us-ea
 CDK_PROCESSING_REGION=<replace with the region where you want the worker services to be, e.g. us-east-1>
 SLACK_CHANNEL_HOOK=<your Slack channel webhook url here>
 SLACK_CHANNEL_ID=<your Slack channel ID here>
-SLACK_CALL_API_KEY=<assign an random api key to be used when initiating Slack webhook calls, all letters>
 LIFECYCLE_NOTIFY_EMAIL=<an email address to receive the triaged approval requests for lifecycle type of health events>
 OPS_ISSUE_NOTIFY_EMAIL=<an email address to receive the triaged approval requests for operational issue type of health events>
 EVENT_HUB_ARN=arn:aws:events:<replace with your region>:<replace with the worker service region>:event-bus/AiOpsStatefulStackAiOpsEventBus

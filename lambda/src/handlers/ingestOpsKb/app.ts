@@ -9,11 +9,21 @@ import {
 import { v4 as uuid } from 'uuid';
 
 const client = new BedrockAgentClient();
-const knowledgeBaseId = process.env.KNOWLEDGE_BASE_ID as string;
-const dataSourceId = process.env.KB_DATA_SOURCE_ID as string;
 
 export const lambdaHandler = async (event: EventBridgeEvent<string, any>, context: Context): Promise<void> => {
   console.log("Incoming event: ", JSON.stringify(event, null, 2))
+
+  const sourceBucketName = JSON.parse(event.Records[0].body).detail.bucket.name
+  let knowledgeBaseId = ''
+  let dataSourceId = ''
+  if (sourceBucketName.includes('ops-health')) {
+    knowledgeBaseId = process.env.HEALTH_KNOWLEDGE_BASE_ID as string;
+    dataSourceId = process.env.HEALTH_KB_DATA_SOURCE_ID as string;
+  }
+  if (sourceBucketName.includes('sec-findings')) {
+    knowledgeBaseId = process.env.SECHUB_KNOWLEDGE_BASE_ID as string;
+    dataSourceId = process.env.SECHUB_KB_DATA_SOURCE_ID as string;
+  }
 
   const input: StartIngestionJobCommandInput = {
     knowledgeBaseId: knowledgeBaseId,

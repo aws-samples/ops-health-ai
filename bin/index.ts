@@ -6,23 +6,33 @@ import * as path from "path";
 
 import { StatefulStack } from '../lib/stateful';
 import { OrgAdminOrgStack } from '../lib/org-admin-stack';
-import { ExpertAgentStack } from '../lib/agent-expert-stack';
 import { OpsHealthAgentStack } from '../lib/agent-ops-health-stack';
 import { DataSourcingStack } from '../lib/data-sourcing-stack';
 import { OpsOrchestrationStack } from '../lib/ops-orchestration-stack';
-import { QPluginStack } from '../lib/q-plugin-stack';
+import { OpsEventLakeStack } from '../lib/ops-event-lake-stack';
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = new cdk.App();
 
-const sourceEventDomains = [
+const healthEventDomains = [
   'aws.health',
-  'aiops.health',
-  // 'aws.trustedadvisor',
-  // 'aiops.trustedadvisor',
-  // 'aws.securityhub',
-  'aiops.securityhub'
+  'aiops.health', //custom prefixed event source for mockup test events
+]
+
+const sechubEventDomains = [
+  'aws.securityhub',
+  'aiops.securityhub', //custom prefixed event source for mockup test events
+]
+const taEventDomains = [
+  'aws.trustedadvisor',
+  'aiops.trustedadvisor', //custom prefixed event source for mockup test events
+]
+
+const sourceEventDomains = [
+  ...healthEventDomains,
+  ...sechubEventDomains,
+  //...taEventDomains,
 ]
 
 const appEventDomainPrefix = 'com.app.aiops'
@@ -41,10 +51,10 @@ const statefulStack = new StatefulStack(app, 'AiOpsStatefulStack', {
     region: process.env.CDK_PROCESSING_REGION,
   },
   scopedAccountIds: scopedAccountIds,
-  // qAppRoleArn: process.env.Q_APP_ROLE_ARN as string
 });
 
 /* ------  Admin account setup, make sure you cover all regions your organization has footprint in */
+/* ------  in the example 3 regions are monitored hence 3 times the stack deployment ------------- */
 new OrgAdminOrgStack(app, 'OrgAdminOrgStackUsEast1', {
   stackName: `OrgAdminOrgStack`,
   tags: {
@@ -102,11 +112,11 @@ const dataSourcingStack = new DataSourcingStack(app, 'AiOpsDataSourcingStack', {
     account: process.env.CDK_PROCESSING_ACCOUNT,
     region: process.env.CDK_PROCESSING_REGION,
   },
-  videoTranscriptTable: statefulStack.videoTranscriptTable,
-  transcriptBucketName: statefulStack.transcriptBucket.bucketName,
   opsHealthBucketName: statefulStack.opsHealthBucket.bucketName,
   taFindingsBucketName: statefulStack.taFindingsBucket.bucketName,
   secFindingsBucketName: statefulStack.secFindingsBucket.bucketName,
+  healthEventDomains: healthEventDomains,
+  sechubEventDomains: sechubEventDomains,
   targetS3Region: cdk.Stack.of(statefulStack).region,
   aiOpsEventBus: statefulStack.aiOpsEventBus
 });
@@ -127,37 +137,27 @@ const opsOrchestrationStack = new OpsOrchestrationStack(app, 'OpsOrchestrationSt
   slackAccessToken: process.env.SLACK_ACCESS_TOKEN as string,
   eventManagementTableName: statefulStack.eventManagementTable.tableName,
   aiOpsEventBus: statefulStack.aiOpsEventBus,
-  sourceEventDomains: sourceEventDomains,
+  healthEventDomains: healthEventDomains,
+  sechubEventDomains: sechubEventDomains,
   appEventDomainPrefix: appEventDomainPrefix
 });
 
-// const qPluginStack = new QPluginStack(app, 'QPluginStack', {
-//   stackName: `QPluginStack`,
-//   tags: {
-//     env: 'prod',
-//     "ManagedBy": 'QPluginStack',
-//     "auto-delete": "no"
-//   },
-//   env: {
-//     account: process.env.CDK_PROCESSING_ACCOUNT,
-//     region: process.env.CDK_PROCESSING_REGION,
-//   }
-// });
-
-// const expertAgentStack = new ExpertAgentStack(app, 'ExpertAgentStack', {
-//   stackName: `ExpertAgentStack`,
-//   tags: {
-//     env: 'prod',
-//     "ManagedBy": 'ExpertAgentStack',
-//     "auto-delete": "no"
-
-//   },
-//   env: {
-//     account: process.env.CDK_PROCESSING_ACCOUNT,
-//     region: process.env.CDK_PROCESSING_REGION,
-//   },
-//   transcriptBucketName: statefulStack.transcriptBucket.bucketName
-// });
+const opsEventLakeStack = new OpsEventLakeStack(app, 'OpsEventLakeStack', {
+  stackName: `OpsEventLakeStack`,
+  tags: {
+    env: 'prod',
+    "ManagedBy": 'HealthProcessingStack',
+    "auto-delete": "no"
+  },
+  env: {
+    account: process.env.CDK_PROCESSING_ACCOUNT,
+    region: process.env.CDK_PROCESSING_REGION,
+  },
+  opsEventBucketArn: statefulStack.opsEventLakeBucket.bucketArn,
+  aiOpsEventBus: statefulStack.aiOpsEventBus,
+  healthEventDomains: healthEventDomains,
+  sechubEventDomains: sechubEventDomains
+});
 
 const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OpsHealthAgentStack', {
   stackName: `OpsHealthAgentStack`,
@@ -180,7 +180,6 @@ const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OpsHealthAgentStack', 
   aiOpsEventBus: statefulStack.aiOpsEventBus,
   sourceEventDomains: sourceEventDomains,
   appEventDomainPrefix: appEventDomainPrefix,
-  slackMeFunction: opsOrchestrationStack.slackMeFunction,
-  // EventCallbackUrl: `${opsOrchestrationStack.restApi.url}event-callback`
+  slackMeFunction: opsOrchestrationStack.slackMeFunction
 });
 

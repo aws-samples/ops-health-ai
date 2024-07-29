@@ -8,29 +8,21 @@ import { LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as sfn from "aws-cdk-lib/aws-stepfunctions";
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import * as kfh from 'aws-cdk-lib/aws-kinesisfirehose';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as fs from 'fs';
 import * as path from 'path';
 
 export interface OpsOrchestrationStackProps extends cdk.StackProps {
-  // slackMeUrl: string,
   slackChannelId: string
   slackAppVerificationToken: string
   slackAccessToken: string
   eventManagementTableName: string
   aiOpsEventBus: events.IEventBus
-  sourceEventDomains: string[]
+  healthEventDomains: string[],
+  sechubEventDomains: string[],
   appEventDomainPrefix: string
 }
 
 export class OpsOrchestrationStack extends cdk.Stack {
-  // public readonly healthEventBucket: s3.IBucket
-  // public readonly apiConnection: events.IConnection
   public readonly restApi: apigw.RestApi
   public readonly slackMeFunction: lambda.Function
 
@@ -45,11 +37,9 @@ export class OpsOrchestrationStack extends cdk.Stack {
     });
     opsOrchestrationRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'));
     opsOrchestrationRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSLambda_FullAccess'));
-    //without KMS permissions, startInstance call would not work if instance volume is encrypted by key
     opsOrchestrationRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        "kms:CreateGrant",
         "states:InvokeHTTPEndpoint",
         "events:RetrieveConnectionCredentials",
         "events:PutEvents",
@@ -169,54 +159,13 @@ export class OpsOrchestrationStack extends cdk.Stack {
 
     // -------------------------------------------------------
 
-    /*** Lambda function to mimic State machine callbacks from integrated services ***/
-    lambdaExecutionRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-        "states:SendTaskSuccess",
-        "states:SendTaskFailure"
-      ],
-      resources: ['*']
-    }));
-
-    const eventCallbackFunction = new lambda.Function(this, 'EventCallback', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/CallbackEventFunction'),
-      handler: 'app.lambdaHandler',
-      timeout: cdk.Duration.seconds(5),
-      memorySize: 128,
-      architecture: lambda.Architecture.ARM_64,
-      reservedConcurrentExecutions: 1,
-      role: lambdaExecutionRole,
-      tracing: lambda.Tracing.DISABLED,
-      environment: {
-      },
-    });
-
-    new logs.LogGroup(this, 'EventCallbackLogGroup', {
-      logGroupName: `/aws/lambda/${eventCallbackFunction.functionName}`,
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    const eventCallbackApi = this.restApi.root.addResource('event-callback');
-    eventCallbackApi.addMethod(
-      'GET',
-      new LambdaIntegration(eventCallbackFunction, { proxy: true }),
-    );
-    new cdk.CfnOutput(this, "EventCallbackApiUrl", { value: `${this.restApi.url}event-callback` })
-    /******************************************************************************* */
-
     /********* Main event processing state machine *************************/
     const opsOrchestrationSfn = new sfn.StateMachine(this, 'OpsOrchestration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-orchestration.asl')).toString().trim()),
       definitionSubstitutions: {
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
         "AppEventBusPlaceholder": props.aiOpsEventBus.eventBusName,
-        "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix,
-        // "SlackApiEndpointPlaceholder": props.slackMeUrl
+        "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix
       },
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,
@@ -228,7 +177,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
       eventBus: props.aiOpsEventBus,
       eventPattern: {
         // source: [{ prefix: '' }] as any[]
-        source: ['aws.health','aiops.health']
+        source: props.healthEventDomains
       },
       ruleName: 'OpsOrchestrationSubscription1',
       description: 'AiOps main orchestration flow',
@@ -237,10 +186,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     const opsOrchestrationSubscriptionRule2 = new events.Rule(this, 'OpsOrchestrationSubscription2', {
       eventBus: props.aiOpsEventBus,
       eventPattern: {
-        source: [
-          // 'aws.securityhub',
-          'aiops.securityhub'
-        ],
+        source: props.sechubEventDomains,
         detail: {
           findings: {
             // Matchers may appear at any level

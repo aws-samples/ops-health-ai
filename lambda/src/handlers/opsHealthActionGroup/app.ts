@@ -127,7 +127,7 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
           Recommendations: { S: recommendedAction ? recommendedAction : ''},
           Assignee: { S: assignee ? assignee : ''},
           Severity: { S: severity ? severity : ''},
-          Progress: { S: severity ? progress : ''},
+          Progress: { S: progress ? progress : 'New'},
           createdAt: { S: (new Date()).toLocaleString() }
         },
       };
@@ -138,13 +138,13 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
       break;
 
     case '/accept-event':
-      let action = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'action' )?.value as string
-      // let taskToken = atob(event.requestBody.content['application/json'].properties[1].value)
+      let action = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'action')?.value as string
       let taskToken = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'taskToken' )?.value as string
 
-      // sanitize input values as sometimes LLM generated argument value contains leading and trailing quotes
+      // sanitize input values as sometimes LLM generated argument value contains leading and trailing quotes or unwanted xml tags
       action = action.replace(/^\'|\'$/g, "");
       taskToken = taskToken.replace(/^\'|\'$/g, "");
+      taskToken = taskToken.replace(/^\<\!\[CDATA\[|\]\]$/g, "");
 
       let sendTaskSuccessCommand = new SendTaskSuccessCommand({
         taskToken: taskToken,

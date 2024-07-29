@@ -17,7 +17,6 @@ import * as fs from 'fs';
 import * as path from "path";
 
 export interface OpsHealthAgentProps extends cdk.StackProps {
-  // scopedAccountIds: string[],
   opsHealthBucketName: string,
   opsSecHubBucketName: string,
   slackChannelId: string
@@ -35,15 +34,9 @@ export class OpsHealthAgentStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: OpsHealthAgentProps) {
     super(scope, id, props);
 
-    // let listOfAcctPrincipals = props.scopedAccountIds.map(id => new iam.AccountPrincipal(id));
-
     /******************* DynamoDB Table to manage user chat sessions *****************/
     const chatUserSessionsTable = new dynamodb.Table(this, 'ChatUserSessionsTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      // tableName: 'ChatUserSessionsTable',
-      // billingMode: dynamodb.BillingMode.PROVISIONED,
-      // readCapacity: 1,
-      // writeCapacity: 1,
       pointInTimeRecovery: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       partitionKey: {
@@ -104,18 +97,10 @@ export class OpsHealthAgentStack extends cdk.Stack {
       }),
     )
     const cfnIndex = new kendra.CfnIndex(this, 'AiOpsIndex', {
-      edition: 'ENTERPRISE_EDITION', //DEVELOPER_EDITION | ENTERPRISE_EDITION
+      edition: 'DEVELOPER_EDITION', //DEVELOPER_EDITION | ENTERPRISE_EDITION
       name: `${cdk.Stack.of(this).stackName}-kendraIndex`,
       roleArn: indexRole.roleArn,
       userContextPolicy: 'ATTRIBUTE_FILTER', //ATTRIBUTE_FILTER | USER_TOKEN
-      // userTokenConfigurations: [{
-      //   jwtTokenTypeConfiguration: {
-      //     keyLocation: 'URL',
-      //     url: `https://cognito-idp.${awsRegion}.amazonaws.com/${this.props.CognitoUserPoolId}/.well-known/jwks.json`,
-      //     groupAttributeField: 'cognito:groups',
-      //     userNameAttributeField: 'cognito:username',
-      //   },
-      // }],
     });
     cdk.Tags.of(cfnIndex).add('auto-delete', 'no');
 
@@ -153,21 +138,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     );
 
 
-    // this.kendraDataSource = new kendra.CfnDataSource(this, 'llmdemoIndexDataSource', {
-    //   indexId: cfnIndex.attrId,
-    //   name: 'llmdemoIndexDataSource',
-    //   type: 'S3',
-    //   roleArn: kendraS3AccessRole.roleArn,
-    //   dataSourceConfiguration: {
-    //     s3Configuration: {
-    //       bucketName: this.props.kendraDataSyncInputBucketName,
-    //       accessControlListConfiguration: {
-    //         keyPath: `s3://${this.props.kendraDataSyncInputBucketName}/kendra_acl.json`,
-    //       },
-    //     },
-    //   },
-    // });
-
+    // add crawler for IAM documentation
     const kendraIamDataSource = new kendra.CfnDataSource(this, 'AiOpsIndexIamDataSource', {
       indexId: cfnIndex.attrId,
       name: 'AiOpsIndexIamDocs',
@@ -184,14 +155,9 @@ export class OpsHealthAgentStack extends cdk.Stack {
           maxContentSizePerPageInMegaBytes: 50,
           maxLinksPerPage: 100
         }
-        // s3Configuration: {
-        //   bucketName: this.props.kendraDataSyncInputBucketName,
-        //   accessControlListConfiguration: {
-        //     keyPath: `s3://${this.props.kendraDataSyncInputBucketName}/kendra_acl.json`,
-        //   },
-        // },
       },
     });
+    // add crawler for Security Hub documentation
     const kendraSecHubDataSource = new kendra.CfnDataSource(this, 'AiOpsIndexSecHubDataSource', {
       indexId: cfnIndex.attrId,
       name: 'AiOpsIndexSecHubDocs',
@@ -210,6 +176,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
         }
       },
     });
+    // add crawler for SSM documentation
     const kendraSsmDataSource = new kendra.CfnDataSource(this, 'AiOpsIndexSsmDataSource', {
       indexId: cfnIndex.attrId,
       name: 'AiOpsIndexSsmDocs',
@@ -308,31 +275,41 @@ export class OpsHealthAgentStack extends cdk.Stack {
       }
     });
 
-    const bufferKbSyncSqs = new sqs.Queue(this, 'bufferOpsHealthKbSyncSqs', {
+    const healthBufferKbSyncSqs = new sqs.Queue(this, 'BufferHealthKbSyncSqs', {
+      visibilityTimeout: cdk.Duration.seconds(300), //6 times the function timeout, plus the value of MaximumBatchingWindowInSeconds
+    })
+    const sechubBufferKbSyncSqs = new sqs.Queue(this, 'BufferSechubKbSyncSqs', {
       visibilityTimeout: cdk.Duration.seconds(300), //6 times the function timeout, plus the value of MaximumBatchingWindowInSeconds
     })
 
-    const ingestKbFunction = new lambda.Function(this, 'IngestOpsHealthKbFunction', {
+    const ingestKbFunction = new lambda.Function(this, 'IngestOpsKbFunction', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/IngestOpsHealthKbFunction'),
+      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/IngestOpsKbFunction'),
       handler: 'app.lambdaHandler',
       timeout: cdk.Duration.seconds(15),
       memorySize: 128,
       architecture: lambda.Architecture.ARM_64,
       reservedConcurrentExecutions: 1,
       environment: {
-        KNOWLEDGE_BASE_ID: opsHealthKnowledgeBase.knowledgeBaseId,
-        KB_DATA_SOURCE_ID: opsHealthDataSource.dataSourceId
+        HEALTH_KNOWLEDGE_BASE_ID: opsHealthKnowledgeBase.knowledgeBaseId,
+        SECHUB_KNOWLEDGE_BASE_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
+        HEALTH_KB_DATA_SOURCE_ID: opsHealthDataSource.dataSourceId,
+        SECHUB_KB_DATA_SOURCE_ID: opsSecHubDataSource.dataSourceId
       },
     });
 
-    ingestKbFunction.addEventSource(new SqsEventSource(bufferKbSyncSqs, {
+    ingestKbFunction.addEventSource(new SqsEventSource(healthBufferKbSyncSqs, {
       batchSize: 100,
       maxBatchingWindow: cdk.Duration.minutes(3),
       reportBatchItemFailures: true
     }));
+    ingestKbFunction.addEventSource(new SqsEventSource(sechubBufferKbSyncSqs, {
+      batchSize: 1,
+      maxBatchingWindow: cdk.Duration.minutes(3),
+      reportBatchItemFailures: true
+    }));
 
-    const ingestKbLogGroup = new logs.LogGroup(this, 'IngestOpsHealthKbLogGroup', {
+    const ingestKbLogGroup = new logs.LogGroup(this, 'IngestOpsKbLogGroup', {
       logGroupName: `/aws/lambda/${ingestKbFunction.functionName}`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -342,7 +319,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       actions: [
         "bedrock:StartIngestionJob"
       ],
-      resources: [opsHealthKnowledgeBase.knowledgeBaseArn],
+      resources: [opsHealthKnowledgeBase.knowledgeBaseArn, opsSecHubKnowledgeBase.knowledgeBaseArn],
       effect: cdk.aws_iam.Effect.ALLOW
     });
 
@@ -352,7 +329,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       }),
     );
 
-    new events.Rule(this, `OpsHealthKbFileArrivalRule`, {
+    new events.Rule(this, `OpsKbFileArrivalRule`, {
       // from default event bus
       eventPattern: {
         source: [
@@ -365,12 +342,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
         detail: {
           bucket: {
             name: [
-              props.opsHealthBucketName
+              props.opsHealthBucketName, props.opsSecHubBucketName
             ]
           }
         }
       },
-      targets: [new evtTargets.SqsQueue(bufferKbSyncSqs)]
+      targets: [new evtTargets.SqsQueue(healthBufferKbSyncSqs), new evtTargets.SqsQueue(sechubBufferKbSyncSqs)]
     });
 
     /*** Bedrock agent and agent action groups **************/
@@ -495,16 +472,9 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const aiIntegrationSfn = new sfn.StateMachine(this, 'AiAgentIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-integration.asl')).toString().trim()),
       definitionSubstitutions: {
-        // "ConnectionArnPlaceholder": props.connectionArn,
-        // "EventCallbackUrlPlaceholder": `${props.restApiUrl}event-callback`,
-        // "SlackApiEndpointPlaceholder": props.slackMeUrl,
         "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
-
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
-        // "AppEventBusPlaceholder": props.aiOpsEventBus.eventBusName,
-        // "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix,
         "SlackMeFunctionNamePlaceholder": props.slackMeFunction.functionName,
-        // "EventCallbackUrlPlaceholder": `${this.restApi.url}event-callback`,
         "SlackChannelIdPlaceholder": props.slackChannelId
       },
       tracingEnabled: false,
@@ -533,14 +503,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
     });
     aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'));
     aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSLambda_FullAccess'));
-    //without KMS permissions, startInstance call would not work if instance volume is encrypted by key
     aiOpsChatRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         "bedrock:RetrieveAndGenerate",
         "bedrock:Retrieve",
         "bedrock:InvokeModel",
-        "kms:CreateGrant",
         "states:InvokeHTTPEndpoint",
         "events:RetrieveConnectionCredentials",
         "events:PutEvents",
@@ -556,14 +524,11 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const aiOpsChatSfn = new sfn.StateMachine(this, 'AiOpsChatIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-chat.asl')).toString().trim()),
       definitionSubstitutions: {
-        // "ConnectionArnPlaceholder": props.connectionArn,
-        // "SlackApiEndpointPlaceholder": props.slackMeUrl,
         "OpsHealthKnowledgeBaseIdPlaceHolder": opsHealthKnowledgeBase.knowledgeBaseId,
         "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
         "SlackMeFunctionNamePlaceholder": props.slackMeFunction.functionName,
         "SlackChannelIdPlaceholder": props.slackChannelId,
         "ChatUserSessionsTableNamePlaceholder": chatUserSessionsTable.tableName,
-        // "LlmModelArnPlaceholder": `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-v1`,
         "LlmModelArnPlaceholder": `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
       },
       tracingEnabled: false,
