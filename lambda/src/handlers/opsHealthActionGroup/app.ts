@@ -87,16 +87,11 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
       break;
 
     case '/list-tickets':
-      // let eventStatusCode = ''
-      // let eventTypeCode = 'LIFECYCLE_EVENT'
-      // let affectedAccount = ''
       let eventKey = event.parameters[0].value
       let command = new ScanCommand({
         TableName: process.env.TICKET_TABLE,
         FilterExpression: "contains(EventPk, :eventKey)",
-        // FilterExpression: "contains(EventStatusCode, :eventStatusCode) AND contains(EventTypeCode, :eventTypeCode)",
         ExpressionAttributeValues: {
-          // ":eventStatusCode": { S: "upcoming" },
           ":eventKey": { S: eventKey }
         }
       })
