@@ -24,7 +24,7 @@
         You can use the below company runbook as reference to make decisions on taking actions on a given event/situation.
         <escalation_runbook>
             Document Title: MyCompany Escalation runbook
-            A notified event or situation must first be 'accepted' or 'discharged', the completion of this step indicates that the event/situation is acknowledged by an operator.
+            A notified event or situation must first be acknowledged by either accepting or discharging it.
             When a notified event or situation doest not indicate substantial impact/risk and requires no customer actions, the event must be 'discharged'. There are no further action needed once it is discharged.
             When a notified event or situation indicates substantial impact/risk or requires customer actions, the event must be 'accepted'. Then an issue ticket must be created to track the status of remediation actions and the ownership of actions. When an issue ticket is created, it must contain the following information as required fields:
             1. Issue title - a short summary of the issue or situation.

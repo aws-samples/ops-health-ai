@@ -114,11 +114,11 @@
         }
       }
     },
-    "/accept-event": {
+    "/acknowledge-event": {
       "post": {
-        "summary": "Function to either accept or discharge an event",
-        "description": "Take action to either accept or discharge an event",
-        "operationId": "AcceptEvent",
+        "summary": "Tool used to acknowledge an event",
+        "description": "Tool used to acknowledge an event by either accept or discharge it.",
+        "operationId": "AcknowledgeEvent",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -129,15 +129,15 @@
                 "properties": {
                   "action": {
                     "type": "string",
-                    "description": "To accept event, call with 'accept' status. To discharge event, call with 'discharge' status."
+                    "description": "To accept an event, use 'accept' as the action value. To discharge an event, use 'discharge' as the action value."
                   },
                   "taskToken": {
                     "type": "string",
-                    "description": "taskToken needed to make function calls."
+                    "description": "taskToken required to make function calls."
                   }
                 },
                 "required": [
-                  "status", "taskToken"
+                  "action", "taskToken"
                 ]
               }
             }

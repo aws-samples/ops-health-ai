@@ -81,11 +81,6 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
   let httpStatusCode = 200;
   let body = ''
   switch (event.apiPath) {
-    case '/test':
-      console.log('Test argument value is: ', event.parameters[0].value)
-      body = 'test succeeded.'
-      break;
-
     case '/list-tickets':
       let eventKey = event.parameters[0].value
       let command = new ScanCommand({
@@ -132,14 +127,16 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
       body = JSON.stringify(await table.send(createTicketCommand));
       break;
 
-    case '/accept-event':
+    case '/acknowledge-event':
       let action = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'action')?.value as string
       let taskToken = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'taskToken' )?.value as string
 
       // sanitize input values as sometimes LLM generated argument value contains leading and trailing quotes or unwanted xml tags
+      // console.log("Debug token before sanitization: ", taskToken)
       action = action.replace(/^\'|\'$/g, "");
       taskToken = taskToken.replace(/^\'|\'$/g, "");
       taskToken = taskToken.replace(/^\<\!\[CDATA\[|\]\]$/g, "");
+      console.log("Debug token after sanitization: ", taskToken)
 
       let sendTaskSuccessCommand = new SendTaskSuccessCommand({
         taskToken: taskToken,
@@ -153,7 +150,7 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
         cause: "Discharged by operator"
       })
       console.log("Debug action value:", action)
-      console.log("Debug token value", taskToken)
+
       if (action === 'accept') {
         body = JSON.stringify(await sfn.send(sendTaskSuccessCommand)
           .then(res => {

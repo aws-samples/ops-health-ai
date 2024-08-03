@@ -52,12 +52,11 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /******************************************************************************* */
 
     /***************** Rest API and API integration to call Lambda functions ******* */
-    // uncomment the below to enable logging when troubleshooting needed
-
-    // const logGroup = new logs.LogGroup(this, "ApiGatewayAccessLogs", {
-    //   retention: logs.RetentionDays.ONE_WEEK,
-    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
-    // });
+    // uncomment the below to disable logging when troubleshooting needed
+    const logGroup = new logs.LogGroup(this, "ApiGatewayAccessLogs", {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     this.restApi = new apigw.RestApi(this, 'AiOpsRestEndpoints', {
       restApiName: `${cdk.Stack.of(this).stackName}-aiOpsApi`,
@@ -66,9 +65,9 @@ export class OpsOrchestrationStack extends cdk.Stack {
       deployOptions: {
         stageName: 'prod',
         tracingEnabled: false, // enable x-ray
-        // accessLogDestination: new apigw.LogGroupLogDestination(logGroup),
-        // accessLogFormat: apigw.AccessLogFormat.jsonWithStandardFields(),
-        // loggingLevel: apigw.MethodLoggingLevel.INFO
+        accessLogDestination: new apigw.LogGroupLogDestination(logGroup),
+        accessLogFormat: apigw.AccessLogFormat.jsonWithStandardFields(),
+        loggingLevel: apigw.MethodLoggingLevel.INFO
       },
       defaultCorsPreflightOptions: {
         // allowHeaders: [
@@ -97,7 +96,10 @@ export class OpsOrchestrationStack extends cdk.Stack {
       effect: iam.Effect.ALLOW,
       actions: [
         "kms:CreateGrant",
-        "events:PutEvents"
+        "events:PutEvents",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
       ],
       resources: ['*']
     }));

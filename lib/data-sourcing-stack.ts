@@ -44,7 +44,6 @@ export class DataSourcingStack extends cdk.Stack {
       memorySize: 128,
       architecture: lambda.Architecture.ARM_64,
       reservedConcurrentExecutions: 1,
-      // role: executionRole,
       environment: {
         TARGET_S3_REGION: props.targetS3Region,
         OPS_HEALTH_S3: props.opsHealthBucketName,
