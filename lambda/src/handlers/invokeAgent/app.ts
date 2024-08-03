@@ -1,4 +1,5 @@
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts"
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3"
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import {
   BedrockAgentRuntimeClient,
@@ -35,7 +36,15 @@ export const lambdaHandler = async (event: any): Promise<AgentResponse> => {
     console.log('Could not fetch existing session id, using generated...')
   }
 
-  const prompt = event.detail.event.text
+  let prompt = event.detail.event.text
+  if (event.detail.event.payloadS3Key) {
+    const key = event.detail.event.payloadS3Key
+    const s3 = new S3Client();
+    const params = { Bucket: process.env.PAYLOAD_BUCKET, Key: key };
+    const data = await s3.send(new GetObjectCommand(params));
+    const fileContent = await data.Body?.transformToString();
+    prompt = fileContent;
+  }
 
   const input: InvokeAgentRequest = {
     // sessionState: {

@@ -16,6 +16,7 @@ export interface OpsOrchestrationStackProps extends cdk.StackProps {
   slackAppVerificationToken: string
   slackAccessToken: string
   eventManagementTableName: string
+  transientPayloadsBucketName: string
   aiOpsEventBus: events.IEventBus
   healthEventDomains: string[],
   sechubEventDomains: string[],
@@ -99,7 +100,12 @@ export class OpsOrchestrationStack extends cdk.Stack {
         "events:PutEvents",
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
-        "logs:PutLogEvents"
+        "logs:PutLogEvents",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:GetBucketLocation",
+        "s3:ListMultipartUploadParts",
+        "s3:PutObject"
       ],
       resources: ['*']
     }));
@@ -119,7 +125,8 @@ export class OpsOrchestrationStack extends cdk.Stack {
         SLACK_APP_VERIFICATION_TOKEN: props.slackAppVerificationToken,
         SLACK_ACCESS_TOKEN: props.slackAccessToken,
         INTEGRATION_EVENT_BUS_NAME: props.aiOpsEventBus.eventBusName,
-        EVENT_DOMAIN_PREFIX: props.appEventDomainPrefix
+        EVENT_DOMAIN_PREFIX: props.appEventDomainPrefix,
+        PAYLOAD_BUCKET: props.transientPayloadsBucketName
       },
     });
 

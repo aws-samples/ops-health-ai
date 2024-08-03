@@ -1,6 +1,7 @@
 import { APIGatewayProxyEventV2 } from "aws-lambda"
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts"
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge"
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import { WebClient } from '@slack/web-api';
 
@@ -85,6 +86,19 @@ const dispatchRequest = async (requestParams: any): Promise<ApiGwResponse> => {
     requestParams.event.text = requestParams.event.text.replace(`@history`, `${input.join(`\n${'-'.repeat(10)}\n`)}\n The user query is: `)
   }
 
+  let eventDetail = JSON.stringify(requestParams)
+
+  // if the event detail payload is larger than 200k, store it in s3 and pass the key instead
+  if (Buffer.byteLength(JSON.stringify(requestParams)) > 200000) {
+    const key = `ops-event-payloads/${requestParams.event.channel}-${requestParams.event.thread_ts}`
+    const s3 = new S3Client();
+    const params = { Bucket: process.env.PAYLOAD_BUCKET, Key: key, Body: JSON.stringify(requestParams) };
+    await s3.send(new PutObjectCommand(params));
+    requestParams.event.text = ''
+    requestParams.event.payloadS3Key = key
+    eventDetail = JSON.stringify(requestParams)
+  }
+
   const putEventsCommand = new PutEventsCommand({
     Entries: [
       {
@@ -92,7 +106,7 @@ const dispatchRequest = async (requestParams: any): Promise<ApiGwResponse> => {
         Source: `${process.env.EVENT_DOMAIN_PREFIX as string}.ops-orchestration`,
         Resources: [],
         DetailType: detailType,
-        Detail: JSON.stringify(requestParams),
+        Detail: eventDetail,
         EventBusName: process.env.INTEGRATION_EVENT_BUS_NAME as string,
         TraceHeader: process.env.AWS_LAMBDA_FUNCTION_NAME as string,
       },

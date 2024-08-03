@@ -14,6 +14,7 @@ export class StatefulStack extends cdk.Stack {
   public readonly secFindingsBucket: s3.Bucket;
   public readonly taFindingsBucket: s3.Bucket;
   public readonly opsEventLakeBucket: s3.Bucket;
+  public readonly transientPayloadsBucket: s3.Bucket;
   public readonly eventManagementTable: dynamodb.ITable
   public readonly ticketManagementTable: dynamodb.ITable
   public readonly aiOpsEventBus: events.IEventBus
@@ -189,6 +190,40 @@ export class StatefulStack extends cdk.Stack {
         resources: [this.taFindingsBucket.arnForObjects("*"), this.taFindingsBucket.bucketArn],
       }),
     );
+
+    /****************** S3 bucket to hold transient event payloads that are larger than 256k limit **************** */
+    this.transientPayloadsBucket = new s3.Bucket(this, 'TransientPayloadsBucket', {
+      bucketName: `transient-payloads-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
+      eventBridgeEnabled: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      lifecycleRules: [
+        {
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
+          enabled: true,
+          prefix: `ops-event-payloads`,
+          expiration: cdk.Duration.days(2)
+        }
+      ]
+    });
+
+    this.transientPayloadsBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [...listOfAcctPrincipals],
+        actions: [
+          "s3:AbortMultipartUpload",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:ListBucketMultipartUploads",
+          "s3:PutObject",
+          "s3:PutObjectAcl"
+        ],
+        resources: [this.transientPayloadsBucket.arnForObjects("*"), this.transientPayloadsBucket.bucketArn]
+      }),
+    );
+    /******************************************************************************* */
 
     /****** Dedicated event bus for AiOps integrated events processing microservices*************** */
     this.aiOpsEventBus = new events.EventBus(this, "AiOpsEventBus", {

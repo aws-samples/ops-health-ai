@@ -114,7 +114,8 @@ Resources:
           SLACK_APP_VERIFICATION_TOKEN: 'string'
           SLACK_ACCESS_TOKEN: 'string'
           INTEGRATION_EVENT_BUS_NAME:  "string"
-          EVENT_DOMAIN_PREFIX: ""
+          EVENT_DOMAIN_PREFIX: "string"
+          PAYLOAD_BUCKET: "string"
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -137,6 +138,7 @@ Resources:
         Variables:
           AGENT_ID: "string"
           AGENT_ALIAS_ID: "string"
+          PAYLOAD_BUCKET: "string"
     Metadata:
       BuildMethod: esbuild
       BuildProperties:

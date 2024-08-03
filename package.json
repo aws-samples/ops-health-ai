@@ -18,6 +18,7 @@
     "@aws-sdk/client-eventbridge": "^3.620.0",
     "@aws-sdk/client-kendra": "^3.620.0",
     "@aws-sdk/client-qbusiness": "^3.620.0",
+    "@aws-sdk/client-s3": "^3.623.0",
     "@aws-sdk/client-sfn": "^3.620.0",
     "@aws-sdk/client-sts": "^3.620.0",
     "@aws-sdk/credential-providers": "^3.620.0",

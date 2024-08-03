@@ -19,6 +19,7 @@ import * as path from "path";
 export interface OpsHealthAgentProps extends cdk.StackProps {
   opsHealthBucketName: string,
   opsSecHubBucketName: string,
+  transientPayloadsBucketName: string,
   slackChannelId: string
   slackAccessToken: string
   eventManagementTableName: string
@@ -361,7 +362,8 @@ export class OpsHealthAgentStack extends cdk.Stack {
       reservedConcurrentExecutions: 10,
       environment: {
         AGENT_ID: opsHealthAgent.agentId,
-        AGENT_ALIAS_ID: opsHealthAgent.aliasId as string
+        AGENT_ALIAS_ID: opsHealthAgent.aliasId as string,
+        PAYLOAD_BUCKET: props.transientPayloadsBucketName
       },
     });
 
@@ -373,7 +375,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
 
     const invokeAgentPolicy = new iam.PolicyStatement({
       actions: [
-        "bedrock:InvokeAgent"
+        "bedrock:InvokeAgent",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:GetBucketLocation",
+        "s3:ListMultipartUploadParts",
+        "s3:PutObject",
       ],
       resources: ['*'],
       effect: cdk.aws_iam.Effect.ALLOW
