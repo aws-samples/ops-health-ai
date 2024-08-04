@@ -1,40 +1,40 @@
 # Managing cloud operational events at scale by AI
 
-- This project is built fully serverless on AWS and deployable using AWS CDK as IaaC (Infrastructure as code).
-- A working illustration of how AI can share the heavy-lifting of managing operational events (AWS Health events, Security Hub findings, and more) in complex organizations.
-- The project can be used to build further to integrate with more types of events, AWS or non-AWS, using an event-driven architecture (EDA).
-- Cost of running/hosting the solution is subject to the actual consumption of queries and the size of vector store, Kendra document libraries (optional) please consult [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/), [AWS OpenSearch pricing](https://aws.amazon.com/opensearch-service/pricing/#Amazon_OpenSearch_Serverless) and [Amazon Kendra pricing](https://aws.amazon.com/kendra/pricing/) for pricing details. 
+- The solution uses AWS Health and AWS Security Hub findings as sources of operational events to demonstrate the workflow. It can be extended to incorporate additional types of operational events, whether from AWS or non-AWS sources, by following an event-driven architecture (EDA) approach.
+- The solution is designed to be fully serverless on AWS and can be deployed using AWS CDK (Cloud Development Kit) as an Infrastructure as Code (IaC).
+- Slack is used as the primary user interface but can be implemented in similar fashion by other messaging tools such as Mcrosoft TEAMS.
+- Cost of running/hosting the solution depends on the actual consumption of queries and the size of vector store, Kendra document libraries, please consult [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/), [AWS OpenSearch pricing](https://aws.amazon.com/opensearch-service/pricing/#Amazon_OpenSearch_Serverless) and [Amazon Kendra pricing](https://aws.amazon.com/kendra/pricing/) for pricing details. 
 
 ## Highlights of what is contained
-- AI Layer - A microservice that handles the interactions between multiple AWS Bedrock agents, knowledge bases, and user interface (Slack chat)
-- Event processing layer - A microservice that handles the notification, acknowledgement, and action triage of operational events.
-- Archive and reporting layer - A microservice that manages operational events archive, partitioning, and storage in an operational event lake that serves as the foundation of the knowledge bases used in the AI layer.  
-- Slack is used as the primary interface but can be implemented using Microsoft TEAMS.
-- A chatbot using Slack as the UI to interact with the backend gen-AI features, similar functionalities can be implemented on MS TEAMS.
+- Event processing layer - This microservice manages notifications, acknowledgments, and triage of actions. Its main logic is controlled by two key workflows implemented using AWS Step Functions.
+- AI Layer - The microservice that handles the interactions between AWS Bedrock agents, knowledge bases, and user interface (Slack chat).
+- Archive and reporting layer - This microservice handles streaming, storing, and ETL (extracting, transforming, and loading) operational event data. It also prepares a data lake for business intelligence dashboards and reporting analysis. This repo does not include an actual dashboard implementation but lays the groundwork by preparing an operational event data lake for further development.
 
 ## Prerequisites
-- At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts where as 1 is the org admin account and the other is the worker account hosting all the microservices.
-- A Slack app and a channel set up with appropriate permissions and event subscriptions to send/receive messages to/from backend microservices.
+- At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
+- Enable AWS Health Organization view and delegate an administrator account in your AWS management account if you want to manage AWS Health events across your entire AWS Organization. This is optional if you only need to handle events from a single account.
+- Enable AWS Security Hub in your AWS management account. Optionally, enable security Hub with Organizations integration  if you want to monitor security findings for the entire organization instead of just a single account.,
+- Configure a Slack app and set up a channel with appropriate permissions and event subscriptions to send/receive messages to/from backend microservices.
 - AWS CDK installed in your development environment for stack deployment
 - AWS SAM (Serverless Application Model) and Docker installed in your development environment to build Lambda packages
   
 ## Screenshots of Usage
-### Automated event notification and autonomous event acknowledgement and action triage by a virtual supervisor/operator that follows MyCompany policies. The virtual operator is equipped with multiple AI agents, each of which is specialized in a domain to help, e.g. generate recommended actions, take actions to create an issue ticket in the company's ticketing system.
+### Automated event notification, autonomous event acknowledgement and action triage by a virtual supervisor/operator that follows MyCompany policies. The virtual operator is equipped with multiple AI capabilities, each of which is specialized in a knowledge domain to assist, such as generating recommended actions, taking actions to create issue tickets in ITSM tools.
 <img src="./screenshots/screenshot1.png"
   alt="Usage scrrenshot1 by seanxw">
 </p>
 
-### An example of 'noise' filtered out by the virtual event supervisor/operator according to MyCompany policies
+### The virtual event supervisor/operator filters out 'noise' based on MyCompany's policies.
 <img src="./screenshots/screenshot2.png"
   alt="Usage screenshot2 by seanxw">
 </p>
 
-### An example of AI figuring out the issue tickets associated with the AWS Health event in context and getting the latest progress status of the tickets
+### AI can identify the issue tickets related to an AWS Health event and provide the latest status updates on those tickets.
 <img src="./screenshots/screenshot3.png"
   alt="Usage screenshot3 by seanxw">
 </p>
 
-### An example of AI enabled insights from complex event histories
+### An illustration of how the assistant can provide valuable insights from complex thread of operational events.
 <img src="./screenshots/screenshot4.png"
   alt="Usage screenshot4 by seanxw">
 </p>
