@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "invoke Bedrock agent",
   "main": "app.js",
-  "repository": "https://github.com/InitialXW/aws-health-integration",
+  "repository": "https://github.com/aws-samples/ops-health-ai",
   "author": "seanxw",
   "license": "MIT",
   "scripts": {

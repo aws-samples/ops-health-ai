@@ -1,0 +1,36 @@
+{
+    "display_information": {
+        "name": "edops-buddy"
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "edops-buddy",
+            "always_online": true
+        }
+    },
+    "oauth_config": {
+        "scopes": {
+            "bot": [
+                "incoming-webhook",
+                "app_mentions:read",
+                "channels:history",
+                "channels:read",
+                "chat:write",
+                "groups:history",
+                "im:history",
+                "mpim:history"
+            ]
+        }
+    },
+    "settings": {
+        "event_subscriptions": {
+            "request_url": "https://EXAMPLE.amazonaws.com/prod/handle-slack-comm",
+            "bot_events": [
+                "app_mention"
+            ]
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "token_rotation_enabled": false
+    }
+}
