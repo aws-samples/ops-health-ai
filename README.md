@@ -51,6 +51,14 @@
 </p>
 
 ## Deployment steps
+### Create a Slack app and set up a channel
+1. Create a [Slack app](https://api.slack.com/apps) from the manifest template - copy/paste the content of “slack-app-manifest.json” file included in this repository.
+2. Install your app into your workspace, take note of the “Bot User OAuth Token” value to be used in next steps.
+3. Take note of the “Verification Token” value under your app’s Basic Information, you will need it in next steps.
+4. In your Slack desktop app, go to your workspace and add the newly created app.
+5. Create a Slack channel and add the newly created app as an integrated app to the channel.
+6. Find and take note of the channel id by right-clicking on the channel name and selecting ‘Additional options’ to access the ‘More’ menu. Within the ‘More’ menu, click on ‘Open details’ to reveal the Channel details.
+
 ### Copy repo to your local directory
 ```zsh
 git clone https://github.com/aws-samples/ops-health-ai.git
@@ -71,16 +79,26 @@ CDK_PROCESSING_REGION=<replace with the region where you want the worker service
 SLACK_CHANNEL_ID=<your Slack channel ID here>
 EVENT_HUB_ARN=arn:aws:events:<replace with your region>:<replace with the worker service region>:event-bus/AiOpsStatefulStackAiOpsEventBus
 SLACK_APP_VERIFICATION_TOKEN=<replace with your Slack app verification token>
-SLACK_ACCESS_TOKEN=<replace with your Slack access token>
+SLACK_ACCESS_TOKEN=<replace with your Slack Bot User OAuth Token value>
 ```
 ### Deploy by CDK
+Deploy processing microservice to your worker account, the worker account can be the same as your admin account.
+In project root directory, run the following commend:
 ```zsh
-# deploying processing microservice to your worker account, can be the same account as your admin account
-# ensure you are in project root directory
 cdk deploy --all --require-approval never
 ```
-## Testing out
-### Go to EventBridge console in your chosen admin account, ensure you are in the right region, go to'Event buses' and fire off the below test event that mimic a real Health event. You should receive Slack messages for notification and approval request emails. Then start chatting with your assistant about the test events.
+Capture the “HandleSlackCommApiUrl” stack output URL, go to your [Slack app](https://api.slack.com/apps) created in previous steps, go to Event Subscriptions, Request URL Change, then update the URL value with the stack output URL and save.
+
+## Testing the solution
+### Method 1 - Using AWS CLI
+Run below AWS CLIcommand:
+```shell
+aws events put-events --entries file://test-events/mockup-events.json
+```
+You will receive Slack messages notifying you about the mockup event and then followed by automatic feedbacks by the AI assistant. You do NOT need to click the “Accept” or “Discharge” buttons.
+
+### Method 2 - Using AWS Console
+Go to EventBridge console in your chosen admin account, ensure you are in the right region, go to'Event buses' and fire off the below test event that mimic a real Health event. You should receive Slack messages for notification and approval request emails. Then start chatting with your assistant about the test events.
 Test event 1 (a lifecycle event)
 ```json
 {
@@ -147,4 +165,11 @@ Test event 2 (an Ops issue event)
         "totalPages": "1"
 }
 ```
+
+## Cleanup
+Empty all 3 S3 buckets created by the solution stack, and then run in the project directory the following command:
+```shell
+cdk destroy --all
+```
+
 
