@@ -76,8 +76,8 @@ CDK_ADMIN_ACCOUNT=<replace with your 12 digits admin AWS account id>
 CDK_PROCESSING_ACCOUNT=<replace with your 12 digits worker AWS account id. This account id is the same as the admin account id if using single account setup>
 CDK_ADMIN_REGION=<replace with the region where your Organization is, e.g. us-east-1>
 CDK_PROCESSING_REGION=<replace with the region where you want the worker services to be, e.g. us-east-1>
-SLACK_CHANNEL_ID=<your Slack channel ID here>
 EVENT_HUB_ARN=arn:aws:events:<replace with your region>:<replace with the worker service region>:event-bus/AiOpsStatefulStackAiOpsEventBus
+SLACK_CHANNEL_ID=<your Slack channel ID here>
 SLACK_APP_VERIFICATION_TOKEN=<replace with your Slack app verification token>
 SLACK_ACCESS_TOKEN=<replace with your Slack Bot User OAuth Token value>
 ```
@@ -98,7 +98,7 @@ aws events put-events --entries file://test-events/mockup-events.json
 You will receive Slack messages notifying you about the mockup event and then followed by automatic feedbacks by the AI assistant. You do NOT need to click the “Accept” or “Discharge” buttons.
 
 ### Method 2 - Using AWS Console
-Go to EventBridge console in your chosen admin account, ensure you are in the right region, go to'Event buses' and fire off the below test event that mimic a real Health event. You should receive Slack messages for notification and approval request emails. Then start chatting with your assistant about the test events.
+Go to EventBridge console in your chosen admin account, ensure you are in the right region, go to 'Event buses' and fire off the below test event that mimic a real Health event. You should receive Slack messages for notification and approval request emails. Then start chatting with your assistant about the test events.
 Test event 1 (a lifecycle event)
 ```json
 {
