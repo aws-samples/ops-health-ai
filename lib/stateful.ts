@@ -73,6 +73,7 @@ export class StatefulStack extends cdk.Stack {
       eventBridgeEnabled: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
       lifecycleRules: [
         {
           abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
@@ -117,7 +118,8 @@ export class StatefulStack extends cdk.Stack {
       bucketName: `aws-ops-health-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      eventBridgeEnabled: true
+      eventBridgeEnabled: true,
+      autoDeleteObjects: true
     });
 
     this.opsHealthBucket.addToResourcePolicy(
@@ -143,7 +145,8 @@ export class StatefulStack extends cdk.Stack {
       bucketName: `aws-sec-findings-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      eventBridgeEnabled: true
+      eventBridgeEnabled: true,
+      autoDeleteObjects: true,
     });
 
     this.secFindingsBucket.addToResourcePolicy(
@@ -169,7 +172,8 @@ export class StatefulStack extends cdk.Stack {
       bucketName: `aws-ta-findings-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      eventBridgeEnabled: true
+      eventBridgeEnabled: true,
+      autoDeleteObjects: true,
     });
 
     this.taFindingsBucket.addToResourcePolicy(
@@ -197,6 +201,7 @@ export class StatefulStack extends cdk.Stack {
       eventBridgeEnabled: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
       lifecycleRules: [
         {
           abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),

@@ -35,6 +35,9 @@ const sourceEventDomains = [
   //...taEventDomains,
 ]
 
+const eventRegions = (process.env.EVENT_REGIONS as string).split(',')
+console.log(eventRegions)
+
 const appEventDomainPrefix = 'com.app.aiops'
 
 const scopedAccountIds = process.env.CDK_PROCESSING_ACCOUNT as string === process.env.CDK_ADMIN_ACCOUNT as string? [process.env.CDK_PROCESSING_ACCOUNT as string] : [process.env.CDK_PROCESSING_ACCOUNT as string, process.env.CDK_ADMIN_ACCOUNT as string]
@@ -54,51 +57,22 @@ const statefulStack = new StatefulStack(app, 'AiOpsStatefulStack', {
 });
 
 /* ------  Admin account setup, make sure you cover all regions your organization has footprint in */
-/* ------  in the example 3 regions are monitored hence 3 times the stack deployment ------------- */
-new OrgAdminOrgStack(app, 'OrgAdminOrgStackUsEast1', {
-  stackName: `OrgAdminOrgStack`,
-  tags: {
-    env: 'prod',
-    "ManagedBy": 'OrgAdminOrgStack',
-    "auto-delete": "no"
-  },
-  env: {
-    account: process.env.CDK_ADMIN_ACCOUNT,
-    region: 'us-east-1',
-  },
-  aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
-  sourceEventDomains: sourceEventDomains
-});
-
-new OrgAdminOrgStack(app, 'OrgAdminOrgStackUsWest2', {
-  stackName: `OrgAdminOrgStack`,
-  tags: {
-    env: 'prod',
-    "ManagedBy": 'OrgAdminOrgStack',
-    "auto-delete": "no"
-  },
-  env: {
-    account: process.env.CDK_ADMIN_ACCOUNT,
-    region: 'us-west-2',
-  },
-  aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
-  sourceEventDomains: sourceEventDomains
-});
-
-new OrgAdminOrgStack(app, 'OrgAdminOrgStackApSoutheast2', {
-  stackName: `OrgAdminOrgStack`,
-  tags: {
-    env: 'prod',
-    "ManagedBy": 'OrgAdminOrgStack',
-    "auto-delete": "no"
-  },
-  env: {
-    account: process.env.CDK_ADMIN_ACCOUNT,
-    region: 'ap-southeast-2',
-  },
-  aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
-  sourceEventDomains: sourceEventDomains
-});
+for (const region of eventRegions) {
+  new OrgAdminOrgStack(app, `OrgAdminOrgStack-${region}`, {
+    stackName: `OrgAdminOrgStack-${region}`,
+    tags: {
+      env: 'prod',
+      "ManagedBy": `OrgAdminOrgStack-${region}`,
+      "auto-delete": "no"
+    },
+    env: {
+      account: process.env.CDK_ADMIN_ACCOUNT,
+      region: region,
+    },
+    aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
+    sourceEventDomains: sourceEventDomains
+  });
+}
 /********************************************************************** */
 
 const dataSourcingStack = new DataSourcingStack(app, 'AiOpsDataSourcingStack', {

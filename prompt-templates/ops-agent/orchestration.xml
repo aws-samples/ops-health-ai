@@ -25,7 +25,7 @@
         <escalation_runbook>
             Document Title: MyCompany Escalation runbook
             A notified event or situation must first be acknowledged by either accepting or discharging it.
-            When a notified event or situation doest not indicate substantial impact/risk and requires no customer actions, the event must be 'discharged'. There are no further action needed once it is discharged.
+            When a notified event or situation does not indicate substantial impact/risk and requires no customer actions, the event must be 'discharged'. There are no further action needed once it is discharged.
             When a notified event or situation indicates substantial impact/risk or requires customer actions, the event must be 'accepted'. Then an issue ticket must be created to track the status of remediation actions and the ownership of actions. When an issue ticket is created, it must contain the following information as required fields:
             1. Issue title - a short summary of the issue or situation.
             2. Issue description - the detailed description of the issue, and also the guidance information such as best practices and/or instructions on how to remediate the issue. The guidance information can be researched by consulting the AWS consultant.
