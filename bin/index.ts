@@ -36,7 +36,6 @@ const sourceEventDomains = [
 ]
 
 const eventRegions = (process.env.EVENT_REGIONS as string).split(',')
-console.log(eventRegions)
 
 const appEventDomainPrefix = 'com.app.aiops'
 

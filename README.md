@@ -59,14 +59,41 @@
 5. Create a Slack channel and add the newly created app as an integrated app to the channel.
 6. Find and take note of the channel id by right-clicking on the channel name and selecting ‘Additional options’ to access the ‘More’ menu. Within the ‘More’ menu, click on ‘Open details’ to reveal the Channel details.
 
+### Prepare your deployment environment for the worker account
+This step is required only if you chose a worker account that is different from the administration account
+```zsh
+# Make sure your shell session evironment is configured to access the worker workload
+# account of your choice, for detailed guidance on how to configure, refer to 
+# https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html  
+# Note that in this step you are bootstrapping your worker account in such a way 
+# that your administration account is trusted to execute CloudFormation deployment in
+# your worker account, the following command uses an example execution role policy of 'AdministratorAccess',
+# you can swap it for other policies of your own for least privilage best practice,
+# for more information on the topic, refer to https://repost.aws/knowledge-center/cdk-customize-bootstrap-cfntoolkit
+cdk bootstrap aws://<replace with your AWS account id of the worker account>/<replace with the region where your worker services is> --trust <replace with your AWS account id of the administration account> --cloudformation-execution-policies 'arn:aws:iam::aws:policy/AdministratorAccess' --trust-for-lookup <replace with your AWS account id of the administration account>
+```
+
+### Prepare your deployment environment for the administration account
+```zsh
+# Make sure your shell session evironment is configured to access the admistraion 
+# account of your choice, for detailed guidance on how to configure, refer to 
+# https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
+ # Note 'us-east-1' region is required for receiving AWS Health events associated with
+# services that operate in AWS global region.
+cdk bootstrap <replace with your AWS account id of the administration account>/us-east-1
+
+# Optional, if you have your cloud infrastructures hosted in other AWS regions than 'us-east-1', repeat the below commands for each region
+cdk bootstrap <replace with your AWS account id of the administration account>/<replace with the region name, e.g. us-west-2>
+```
+
 ### Copy repo to your local directory
 ```zsh
 git clone https://github.com/aws-samples/ops-health-ai.git
 cd ops-health-ai
 npm install
-cdk bootstrap aws://<your admin AWS account id>/<region where you Organization is> aws://<your worker AWS account id>/<region where your worker services to be>
 cd lambda/src
-# Depending on your build environment, you might want o change the arch type to x84 or arm in lambda/src/template.yaml file before build 
+# Depending on your build environment, you might want o change the arch type to 'x86'
+# or 'arm' in lambda/src/template.yaml file before build 
 sam build --use-container
 cd ../..
 ```
@@ -74,9 +101,9 @@ cd ../..
 ```zsh
 CDK_ADMIN_ACCOUNT=<replace with your 12 digits admin AWS account id>
 CDK_PROCESSING_ACCOUNT=<replace with your 12 digits worker AWS account id. This account id is the same as the admin account id if using single account setup>
-CDK_ADMIN_REGION=<replace with the region where your Organization is, e.g. us-east-1>
+EVENT_REGIONS=us-east-1,<region 1 of where your infrastructures are hosted>,<region 2 of where your infrastructures are hosted>
 CDK_PROCESSING_REGION=<replace with the region where you want the worker services to be, e.g. us-east-1>
-EVENT_HUB_ARN=arn:aws:events:<replace with your region>:<replace with the worker service region>:event-bus/AiOpsStatefulStackAiOpsEventBus
+EVENT_HUB_ARN=arn:aws:events:<replace with the worker service region>:<replace with the worker service account id>:event-bus/AiOpsStatefulStackAiOpsEventBus
 SLACK_CHANNEL_ID=<your Slack channel ID here>
 SLACK_APP_VERIFICATION_TOKEN=<replace with your Slack app verification token>
 SLACK_ACCESS_TOKEN=<replace with your Slack Bot User OAuth Token value>
