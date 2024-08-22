@@ -60,7 +60,7 @@
 6. Find and take note of the channel id by right-clicking on the channel name and selecting ‘Additional options’ to access the ‘More’ menu. Within the ‘More’ menu, click on ‘Open details’ to reveal the Channel details.
 
 ### Prepare your deployment environment for the worker account
-This step is required only if you chose a worker account that is different from the administration account
+This step is required only if you chose a worker account that is different from the administration account. Make sure you are not running the command under an existing AWS CDK project root directory.
 ```zsh
 # Make sure your shell session evironment is configured to access the worker workload
 # account of your choice, for detailed guidance on how to configure, refer to 
@@ -74,11 +74,12 @@ cdk bootstrap aws://<replace with your AWS account id of the worker account>/<re
 ```
 
 ### Prepare your deployment environment for the administration account
+Make sure you are not running the command under an existing AWS CDK project root directory.
 ```zsh
 # Make sure your shell session evironment is configured to access the admistraion 
 # account of your choice, for detailed guidance on how to configure, refer to 
 # https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
- # Note 'us-east-1' region is required for receiving AWS Health events associated with
+# Note 'us-east-1' region is required for receiving AWS Health events associated with
 # services that operate in AWS global region.
 cdk bootstrap <replace with your AWS account id of the administration account>/us-east-1
 
@@ -194,7 +195,7 @@ Test event 2 (an Ops issue event)
 ```
 
 ## Cleanup
-Empty all 3 S3 buckets created by the solution stack, and then run in the project directory the following command:
+Run the following command in the CDK project directory:
 ```shell
 cdk destroy --all
 ```
