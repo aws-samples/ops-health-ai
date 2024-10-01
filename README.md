@@ -2,7 +2,7 @@
 
 - The solution uses AWS Health and AWS Security Hub findings as sources of operational events to demonstrate the workflow. It can be extended to incorporate additional types of operational events, whether from AWS or non-AWS sources, by following an event-driven architecture (EDA) approach.
 - The solution is designed to be fully serverless on AWS and can be deployed using AWS CDK (Cloud Development Kit) as an Infrastructure as Code (IaC).
-- Slack is used as the primary user interface but can be implemented in similar fashion by other messaging tools such as Mcrosoft TEAMS.
+- Slack is used as the primary user interface but can be implemented in similar fashion by other messaging tools such as Microsoft TEAMS.
 - Cost of running/hosting the solution depends on the actual consumption of queries and the size of vector store, Kendra document libraries, please consult [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/), [AWS OpenSearch pricing](https://aws.amazon.com/opensearch-service/pricing/#Amazon_OpenSearch_Serverless) and [Amazon Kendra pricing](https://aws.amazon.com/kendra/pricing/) for pricing details. 
 
 ## Highlights of what is contained
@@ -47,7 +47,7 @@
 ## Architecture
 <p align="left">
 <img src="./architecture.png"
-  alt="Archetectural diagram by seanxw">
+  alt="Architectural diagram by seanxw">
 </p>
 
 ## Deployment steps
@@ -62,13 +62,13 @@
 ### Prepare your deployment environment for the worker account
 This step is required only if you chose a worker account that is different from the administration account. Make sure you are not running the command under an existing AWS CDK project root directory.
 ```zsh
-# Make sure your shell session evironment is configured to access the worker workload
+# Make sure your shell session environment is configured to access the worker workload
 # account of your choice, for detailed guidance on how to configure, refer to 
 # https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html  
 # Note that in this step you are bootstrapping your worker account in such a way 
 # that your administration account is trusted to execute CloudFormation deployment in
 # your worker account, the following command uses an example execution role policy of 'AdministratorAccess',
-# you can swap it for other policies of your own for least privilage best practice,
+# you can swap it for other policies of your own for least privilege best practice,
 # for more information on the topic, refer to https://repost.aws/knowledge-center/cdk-customize-bootstrap-cfntoolkit
 cdk bootstrap aws://<replace with your AWS account id of the worker account>/<replace with the region where your worker services is> --trust <replace with your AWS account id of the administration account> --cloudformation-execution-policies 'arn:aws:iam::aws:policy/AdministratorAccess' --trust-for-lookup <replace with your AWS account id of the administration account>
 ```
@@ -76,7 +76,7 @@ cdk bootstrap aws://<replace with your AWS account id of the worker account>/<re
 ### Prepare your deployment environment for the administration account
 Make sure you are not running the command under an existing AWS CDK project root directory.
 ```zsh
-# Make sure your shell session evironment is configured to access the admistraion 
+# Make sure your shell session environment is configured to access the administration 
 # account of your choice, for detailed guidance on how to configure, refer to 
 # https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 # Note 'us-east-1' region is required for receiving AWS Health events associated with

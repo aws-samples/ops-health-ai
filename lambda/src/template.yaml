@@ -6,8 +6,8 @@ Description: >
 Globals:
   Function:
     Architectures:
-        - x86_64
-        # - arm64
+        # - x86_64
+        - arm64
 
 Resources:
   SlackMeFunction:
