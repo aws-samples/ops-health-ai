@@ -212,9 +212,10 @@ export class OpsHealthAgentStack extends cdk.Stack {
       bucket: opsHealthBucket,
       knowledgeBase: opsHealthKnowledgeBase,
       dataSourceName: 'ops-health',
-      chunkingStrategy: bedrock.ChunkingStrategy.DEFAULT,
-      maxTokens: 1000,
-      overlapPercentage: 10,
+      chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
+        maxTokens: 1000,
+        overlapPercentage: 10,
+      })
     });
 
     const opsSecHubKnowledgeBase = new bedrock.KnowledgeBase(this, 'OpsSecHubKnowledgeBase', {
@@ -227,9 +228,10 @@ export class OpsHealthAgentStack extends cdk.Stack {
       bucket: opsSecHubBucket,
       knowledgeBase: opsSecHubKnowledgeBase,
       dataSourceName: 'ops-sechub',
-      chunkingStrategy: bedrock.ChunkingStrategy.DEFAULT,
-      maxTokens: 1000,
-      overlapPercentage: 10,
+      chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
+        maxTokens: 1000,
+        overlapPercentage: 10,
+      })
     });
 
     const opsHealthAgent = new bedrock.Agent(this, 'OpsHealthAgent', {
