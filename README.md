@@ -1,14 +1,5 @@
 # Managing cloud operational events at scale by AI
-
-- The solution uses AWS Health and AWS Security Hub findings as sources of operational events to demonstrate the workflow. It can be extended to incorporate additional types of operational events, whether from AWS or non-AWS sources, by following an event-driven architecture (EDA) approach.
-- The solution is designed to be fully serverless on AWS and can be deployed using AWS CDK (Cloud Development Kit) as an Infrastructure as Code (IaC).
-- Slack is used as the primary user interface but can be implemented in similar fashion by other messaging tools such as Microsoft TEAMS.
-- Cost of running/hosting the solution depends on the actual consumption of queries and the size of vector store, Kendra document libraries, please consult [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/), [AWS OpenSearch pricing](https://aws.amazon.com/opensearch-service/pricing/#Amazon_OpenSearch_Serverless) and [Amazon Kendra pricing](https://aws.amazon.com/kendra/pricing/) for pricing details. 
-
-## Highlights of what is contained
-- Event processing layer - This microservice manages notifications, acknowledgments, and triage of actions. Its main logic is controlled by two key workflows implemented using AWS Step Functions.
-- AI Layer - The microservice that handles the interactions between AWS Bedrock agents, knowledge bases, and user interface (Slack chat).
-- Archive and reporting layer - This microservice handles streaming, storing, and ETL (extracting, transforming, and loading) operational event data. It also prepares a data lake for business intelligence dashboards and reporting analysis. This repo does not include an actual dashboard implementation but lays the groundwork by preparing an operational event data lake for further development.
+https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/
 
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
