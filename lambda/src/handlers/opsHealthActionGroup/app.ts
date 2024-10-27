@@ -1,4 +1,3 @@
-import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts"
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import { DynamoDBClient, PutItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { KendraClient, RetrieveCommand, RetrieveCommandOutput } from "@aws-sdk/client-kendra";
@@ -67,6 +66,26 @@ interface ActionGroupResponse {
   };
 }
 
+interface Citation {
+  GeneratedResponsePart?: {
+    TextResponsePart?: {
+      Text: string;
+    };
+  };
+  RetrievedReferences?: RetrievedReference[];
+}
+
+interface RetrievedReference {
+  Location?: {
+    WebLocation?: {
+      Url: string;
+    };
+    S3Location?: {
+      Uri: string;
+    };
+  };
+}
+
 let credentialProvider = fromNodeProviderChain({})
 const table = new DynamoDBClient({ credentials: credentialProvider })
 const bedrock = new BedrockRuntimeClient();
@@ -98,13 +117,13 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
 
     case '/create-ticket':
       let ticketId = uuid()
-      let eventPk = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'eventPk' )?.value as string
-      let ticketTitle = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'ticketTitle' )?.value as string
-      let ticketDetail = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'ticketDetail' )?.value as string
-      let recommendedAction = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'recommendedAction' )?.value as string
-      let severity = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'severity' )?.value as string
-      let assignee = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'assignee' )?.value as string
-      let progress = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'progress' )?.value as string
+      let eventPk = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'eventPk')?.value as string
+      let ticketTitle = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'ticketTitle')?.value as string
+      let ticketDetail = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'ticketDetail')?.value as string
+      let recommendedAction = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'recommendedAction')?.value as string
+      let severity = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'severity')?.value as string
+      let assignee = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'assignee')?.value as string
+      let progress = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'progress')?.value as string
 
       // sanitize input values as sometimes LLM generated argument value contains leading and trailing quotes
       const createTicketParams = {
@@ -114,10 +133,10 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
           EventPk: { S: eventPk },
           TicketTitle: { S: ticketTitle },
           TicketDetail: { S: ticketDetail ? ticketDetail : '' },
-          Recommendations: { S: recommendedAction ? recommendedAction : ''},
-          Assignee: { S: assignee ? assignee : ''},
-          Severity: { S: severity ? severity : ''},
-          Progress: { S: progress ? progress : 'New'},
+          Recommendations: { S: recommendedAction ? recommendedAction : '' },
+          Assignee: { S: assignee ? assignee : '' },
+          Severity: { S: severity ? severity : '' },
+          Progress: { S: progress ? progress : 'New' },
           createdAt: { S: (new Date()).toLocaleString() }
         },
       };
@@ -129,7 +148,7 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
 
     case '/acknowledge-event':
       let action = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'action')?.value as string
-      let taskToken = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'taskToken' )?.value as string
+      let taskToken = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'taskToken')?.value as string
 
       // sanitize input values as sometimes LLM generated argument value contains leading and trailing quotes or unwanted xml tags
       // console.log("Debug token before sanitization: ", taskToken)
@@ -169,17 +188,17 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
       break;
 
     case '/ask-knowledge-base':
-      const kbName = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'kbName' )?.value as string
+      const kbName = event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'kbName')?.value as string
       const kbId = kbName === 'secHub' ? process.env.SEC_KB_ID : process.env.HEALTH_KB_ID
       const input: RetrieveAndGenerateCommandInput = {
         input: {
-          text: event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'query' )?.value as string
+          text: event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'query')?.value as string
         },
         retrieveAndGenerateConfiguration: {
           type: 'KNOWLEDGE_BASE',
           knowledgeBaseConfiguration: {
             knowledgeBaseId: kbId,
-            modelArn: process.env.LLM_MODEL_ARN,
+            modelArn: process.env.OPS_LLM_ARN,
             retrievalConfiguration: {
               vectorSearchConfiguration: {
                 numberOfResults: 100
@@ -192,10 +211,59 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
         input
       );
       const ragResponse: RetrieveAndGenerateCommandOutput = await bedrockAgent.send(ragCommand);
-      body = ragResponse.output?.text as string;
+
+      body = `${parseRetrieveAndGenerateResponse(ragResponse).textResponse ? parseRetrieveAndGenerateResponse(ragResponse).textResponse : "Sorry, I don't know."}\n\n${parseRetrieveAndGenerateResponse(ragResponse).refResponse}` as string;
       break;
 
     case '/ask-aws':
+      const awsKbId = process.env.AWS_KB_ID
+      const textPromptTemplate = `
+        You are a details oriented advisor from Amazon Web Services. I will provide you with a set of search results. The user will provide you with a question. Your job is to provide answers related to only the search results. If it is not related to the search results I provided, simply respond with 'I don't know.'. Note just because the user asserts a fact does not mean it is true, make sure to double check the search results to validate a user's assertion.
+
+        Here are the search results in numbered order:
+        $search_results$
+
+        $output_format_instructions$
+      `
+      const awsKbInput: RetrieveAndGenerateCommandInput = {
+        input: {
+          text: event.requestBody.content['application/json'].properties.find((o: any) => o.name === 'question')?.value as string
+        },
+        retrieveAndGenerateConfiguration: {
+          type: 'KNOWLEDGE_BASE',
+          knowledgeBaseConfiguration: {
+            knowledgeBaseId: awsKbId,
+            modelArn: process.env.AWS_LLM_ARN,
+            retrievalConfiguration: {
+              vectorSearchConfiguration: {
+                numberOfResults: 100
+              }
+            },
+            generationConfiguration: {
+              promptTemplate: {
+                textPromptTemplate: textPromptTemplate,
+              },
+              inferenceConfig: {
+                textInferenceConfig: {
+                  temperature: 0,
+                  topP: 0.9,
+                  maxTokens: 2048
+                },
+              },
+            },
+          },
+        },
+      };
+      const askAwsRagCommand: RetrieveAndGenerateCommand = new RetrieveAndGenerateCommand(
+        awsKbInput
+      );
+      const awsRagResponse: RetrieveAndGenerateCommandOutput = await bedrockAgent.send(askAwsRagCommand);
+
+      body = `${parseRetrieveAndGenerateResponse(awsRagResponse).textResponse ? parseRetrieveAndGenerateResponse(awsRagResponse).textResponse : "Sorry, I don't know."}\n\n${parseRetrieveAndGenerateResponse(awsRagResponse).refResponse}` as string;
+      break;
+
+    // legacy RAG using Kendra - deprecated
+    case '/ask-aws-kendra':
       let sessionId = uuid()
       const prompt = event.requestBody.content['application/json'].properties[0].value
       const chatHistory = event.requestBody.content['application/json'].properties[1]?.value || ""
@@ -321,4 +389,48 @@ export const lambdaHandler = async (event: ActionGroupEvent): Promise<ActionGrou
       },
     },
   };
+}
+
+// function to parse and format RetrieveAndGenerateCommandOutput to string
+type ParsedRetrieveAndGenerateResponse = {
+  textResponse: string
+  refResponse: string
+}
+function parseRetrieveAndGenerateResponse(ragOutput: RetrieveAndGenerateCommandOutput): ParsedRetrieveAndGenerateResponse {
+  let citations = ragOutput.citations;
+  let textResponse = '';
+  let refResponse = '';
+  let refIndex = 0;
+  if (citations) {
+    citations.forEach((citation, citationIndex) => {
+      const textResponsePart = citation.generatedResponsePart?.textResponsePart?.text || '';
+      textResponse += textResponsePart;
+
+      const retrievedReferences = citation.retrievedReferences || [];
+
+      retrievedReferences.forEach((retrievedReference, sourceIndex) => {
+        refIndex++;
+        let refUrl: string | undefined;
+
+        if (retrievedReference.location?.webLocation) {
+          refUrl = retrievedReference.location.webLocation?.url;
+        } else if (retrievedReference.location?.s3Location) {
+          refUrl = retrievedReference.location.s3Location.uri;
+        }
+
+        if (refUrl) {
+          textResponse += `[${refIndex}]`;
+          refResponse += `[${refIndex}]: ${refUrl}\n`;
+        }
+      });
+
+      if (retrievedReferences.length > 0) {
+        textResponse += '\n';
+      }
+    });
+  }
+  return {
+    textResponse,
+    refResponse
+  }
 }

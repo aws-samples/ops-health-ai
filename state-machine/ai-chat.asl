@@ -91,11 +91,21 @@
             "Lambda.ServiceException",
             "Lambda.AWSLambdaException",
             "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
+            "Lambda.TooManyRequestsException",
+            "Lambda.DependencyFailedException"
           ],
           "IntervalSeconds": 1,
-          "MaxAttempts": 3,
+          "MaxAttempts": 9,
           "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "AiAgentError"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 5,
+          "BackoffRate": 2,
+          "MaxDelaySeconds": 120
         }
       ],
       "Next": "UpsertUserAgentSession",
@@ -145,11 +155,21 @@
             "Lambda.ServiceException",
             "Lambda.AWSLambdaException",
             "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
+            "Lambda.TooManyRequestsException",
+            "Lambda.DependencyFailedException"
           ],
           "IntervalSeconds": 1,
-          "MaxAttempts": 3,
+          "MaxAttempts": 9,
           "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "AiAgentError"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 5,
+          "BackoffRate": 2,
+          "MaxDelaySeconds": 120
         }
       ],
       "Next": "PutUserAgentSession",

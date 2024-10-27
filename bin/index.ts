@@ -155,6 +155,8 @@ const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OpsHealthAgentStack', 
   aiOpsEventBus: statefulStack.aiOpsEventBus,
   sourceEventDomains: sourceEventDomains,
   appEventDomainPrefix: appEventDomainPrefix,
-  slackMeFunction: opsOrchestrationStack.slackMeFunction
+  slackMeFunction: opsOrchestrationStack.slackMeFunction,
+  guardrailIdentifier: statefulStack.bedrockGuardrail.attrGuardrailId,
+  guardrailVersion: statefulStack.bedrockGuardrailVersion.attrVersion
 });
 

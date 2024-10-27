@@ -85,12 +85,13 @@ Resources:
       MemorySize: 128
       Environment:
         Variables:
-          KENDRA_INDEX_ID: "string"
           EVENT_TABLE: "string"
           TICKET_TABLE: "string"
           HEALTH_KB_ID: "string"
           SEC_KB_ID: "string"
-          LLM_MODEL_ARN: "string"
+          AWS_KB_ID: "string"
+          OPS_LLM_ARN: "string"
+          AWS_LLM_ARN: "string"
     Metadata:
       BuildMethod: esbuild
       BuildProperties:

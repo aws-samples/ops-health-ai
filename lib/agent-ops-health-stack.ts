@@ -9,7 +9,6 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as events from "aws-cdk-lib/aws-events";
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as kendra from 'aws-cdk-lib/aws-kendra';
 import { bedrock } from '@cdklabs/generative-ai-cdk-constructs';
 import { Construct } from 'constructs';
 import * as fs from 'fs';
@@ -28,6 +27,8 @@ export interface OpsHealthAgentProps extends cdk.StackProps {
   sourceEventDomains: string[]
   appEventDomainPrefix: string
   slackMeFunction: lambda.IFunction
+  guardrailIdentifier: string,
+  guardrailVersion: string
 }
 
 export class OpsHealthAgentStack extends cdk.Stack {
@@ -53,158 +54,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
     new cdk.CfnOutput(this, "ChatUserSessionsTableName", { value: chatUserSessionsTable.tableName })
     /*************************************************************************************** */
 
-    /*** Kendra doc store*************** */
-    const indexRole = new cdk.aws_iam.Role(
-      this,
-      'kendraIndexRole',
-      {
-        description: 'Role that Kendra uses to push logging and metrics to Amazon Cloudwatch',
-        assumedBy: new cdk.aws_iam.ServicePrincipal('kendra.amazonaws.com'),
-      },
-    );
-
-    indexRole.addToPolicy(
-      new cdk.aws_iam.PolicyStatement({
-        actions: ['cloudwatch:PutMetricData'],
-        resources: ['*'],
-        conditions: {
-          StringEquals: {
-            'cloudwatch:namespace': 'Kendra',
-          },
-        },
-      }),
-    );
-
-    indexRole.addToPolicy(
-      new cdk.aws_iam.PolicyStatement({
-        actions: ['logs:DescribeLogGroups'],
-        resources: ['*'],
-      }),
-    );
-    indexRole.addToPolicy(
-      new cdk.aws_iam.PolicyStatement({
-        actions: ['logs:CreateLogGroup'],
-        resources: [`arn:aws:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:/aws/kendra/*`],
-      }),
-    );
-    indexRole.addToPolicy(
-      new cdk.aws_iam.PolicyStatement({
-        actions: [
-          'logs:DescribeLogStreams',
-          'logs:CreateLogStream',
-          'logs:PutLogEvents',
-        ],
-        resources: [`arn:aws:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:/aws/kendra/*:log-stream:*`],
-      }),
-    )
-    const cfnIndex = new kendra.CfnIndex(this, 'AiOpsIndex', {
-      edition: 'DEVELOPER_EDITION', //DEVELOPER_EDITION | ENTERPRISE_EDITION
-      name: `${cdk.Stack.of(this).stackName}-kendraIndex`,
-      roleArn: indexRole.roleArn,
-      userContextPolicy: 'ATTRIBUTE_FILTER', //ATTRIBUTE_FILTER | USER_TOKEN
-    });
-    cdk.Tags.of(cfnIndex).add('auto-delete', 'no');
-
-    const kendraS3AccessRole = new cdk.aws_iam.Role(
-      this,
-      'kendraS3AccessRole',
-      {
-        description: 'Role that Kendra uses to access documents in S3 bucket',
-        assumedBy: new cdk.aws_iam.ServicePrincipal('kendra.amazonaws.com'),
-      },
-    );
-    kendraS3AccessRole.addToPolicy(
-      new cdk.aws_iam.PolicyStatement({
-        actions: ['s3:GetObject'],
-        // resources: [`arn:aws:s3:::${this.props.kendraDataSyncInputBucketName}/*`],
-        resources: ['*'],
-      }),
-    );
-    kendraS3AccessRole.addToPolicy(
-      new cdk.aws_iam.PolicyStatement({
-        actions: ['s3:ListBucket'],
-        // resources: [`arn:aws:s3:::${this.props.kendraDataSyncInputBucketName}`],
-        resources: ['*'],
-      }),
-    );
-    kendraS3AccessRole.addToPolicy(
-      new cdk.aws_iam.PolicyStatement({
-        actions: [
-          'kendra:BatchPutDocument',
-          'kendra:BatchDeleteDocument',
-        ],
-        // resources: [`arn:aws:kendra:${awsRegion}:${awsAccountId}:index/${cfnIndex.attrId}`],
-        resources: ['*'],
-      }),
-    );
-
-
-    // add crawler for IAM documentation
-    const kendraIamDataSource = new kendra.CfnDataSource(this, 'AiOpsIndexIamDataSource', {
-      indexId: cfnIndex.attrId,
-      name: 'AiOpsIndexIamDocs',
-      type: 'WEBCRAWLER', // S3 | SHAREPOINT | SALESFORCE | ONEDRIVE | SERVICENOW | DATABASE | CUSTOM | CONFLUENCE | GOOGLEDRIVE | WEBCRAWLER | WORKDOCS
-      roleArn: kendraS3AccessRole.roleArn,
-      dataSourceConfiguration: {
-        webCrawlerConfiguration: {
-          urls: {
-            siteMapsConfiguration: {
-              siteMaps: ['https://docs.aws.amazon.com/IAM/latest/UserGuide/sitemap.xml']
-            }
-          },
-          crawlDepth: 2,
-          maxContentSizePerPageInMegaBytes: 50,
-          maxLinksPerPage: 100
-        }
-      },
-    });
-    // add crawler for Security Hub documentation
-    const kendraSecHubDataSource = new kendra.CfnDataSource(this, 'AiOpsIndexSecHubDataSource', {
-      indexId: cfnIndex.attrId,
-      name: 'AiOpsIndexSecHubDocs',
-      type: 'WEBCRAWLER', // S3 | SHAREPOINT | SALESFORCE | ONEDRIVE | SERVICENOW | DATABASE | CUSTOM | CONFLUENCE | GOOGLEDRIVE | WEBCRAWLER | WORKDOCS
-      roleArn: kendraS3AccessRole.roleArn,
-      dataSourceConfiguration: {
-        webCrawlerConfiguration: {
-          urls: {
-            siteMapsConfiguration: {
-              siteMaps: ['https://docs.aws.amazon.com/securityhub/latest/userguide/sitemap.xml']
-            }
-          },
-          crawlDepth: 2,
-          maxContentSizePerPageInMegaBytes: 50,
-          maxLinksPerPage: 100
-        }
-      },
-    });
-    // add crawler for SSM documentation
-    const kendraSsmDataSource = new kendra.CfnDataSource(this, 'AiOpsIndexSsmDataSource', {
-      indexId: cfnIndex.attrId,
-      name: 'AiOpsIndexSsmDocs',
-      type: 'WEBCRAWLER', // S3 | SHAREPOINT | SALESFORCE | ONEDRIVE | SERVICENOW | DATABASE | CUSTOM | CONFLUENCE | GOOGLEDRIVE | WEBCRAWLER | WORKDOCS
-      roleArn: kendraS3AccessRole.roleArn,
-      dataSourceConfiguration: {
-        webCrawlerConfiguration: {
-          urls: {
-            siteMapsConfiguration: {
-              siteMaps: ['https://docs.aws.amazon.com/systems-manager/latest/userguide/sitemap.xml']
-            }
-          },
-          crawlDepth: 2,
-          maxContentSizePerPageInMegaBytes: 50,
-          maxLinksPerPage: 100
-        }
-      },
-    });
-
-    /************************************************************************************ */
-
     const opsHealthBucket = s3.Bucket.fromBucketName(this, 'OpsHealthBucket', props.opsHealthBucketName);
     const opsSecHubBucket = s3.Bucket.fromBucketName(this, 'OpsSecHubBucket', props.opsSecHubBucketName);
 
     const opsHealthKnowledgeBase = new bedrock.KnowledgeBase(this, 'OpsHealthKnowledgeBase', {
       name: 'OpsHealthKnowledgeBase',
-      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V1,
+      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
       instruction: `Use this knowledge base for details about operational health events, issues, and lifecycle notifications.`,
     });
 
@@ -220,7 +75,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
 
     const opsSecHubKnowledgeBase = new bedrock.KnowledgeBase(this, 'OpsSecHubKnowledgeBase', {
       name: 'OpsSecHubKnowledgeBase',
-      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V1,
+      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
       instruction: `Use this knowledge base for details about security findings, issues, risks, events.`,
     });
 
@@ -228,6 +83,24 @@ export class OpsHealthAgentStack extends cdk.Stack {
       bucket: opsSecHubBucket,
       knowledgeBase: opsSecHubKnowledgeBase,
       dataSourceName: 'ops-sechub',
+      chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
+        maxTokens: 1000,
+        overlapPercentage: 10,
+      })
+    });
+
+    const askAwsKnowledgeBase = new bedrock.KnowledgeBase(this, 'AskAwsKnowledgeBase', {
+      name: 'AskAwsKnowledgeBase',
+      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
+      instruction: `Use this knowledge base for guidance and best practices from AWS.`,
+    });
+
+    const askAwsDataSource = new bedrock.WebCrawlerDataSource(this, 'AskAwsDataSource', {
+      knowledgeBase: askAwsKnowledgeBase,
+      dataSourceName: 'ask-aws',
+      sourceUrls: ['https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html','https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html','https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-systems-manager.html','https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-runbook-reference.html'],
+      crawlingScope: bedrock.CrawlingScope.DEFAULT,
+      crawlingRate: 100,
       chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
         maxTokens: 1000,
         overlapPercentage: 10,
@@ -244,6 +117,16 @@ export class OpsHealthAgentStack extends cdk.Stack {
       // knowledgeBases: [opsHealthKnowledgeBase, opsSecHubKnowledgeBase],
       shouldPrepareAgent: true,
       aliasName: 'OpsAgent',
+      guardrailConfiguration: {
+        guardrailVersion: props.guardrailVersion,
+        guardrailId: props.guardrailIdentifier
+      },
+      existingRole: new iam.Role(this, 'OpsHealthAgentRole', {
+        assumedBy: new iam.ServicePrincipal('bedrock.amazonaws.com'),
+        managedPolicies: [
+          iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonBedrockFullAccess')
+        ],
+      }),
       promptOverrideConfiguration: {
         promptConfigurations: [
           {
@@ -406,11 +289,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
       environment: {
         EVENT_TABLE: props.eventManagementTableName,
         TICKET_TABLE: props.ticketManagementTableName,
-        KENDRA_INDEX_ID: cfnIndex.attrId,
         HEALTH_KB_ID: opsHealthKnowledgeBase.knowledgeBaseId,
         SEC_KB_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
-        // LLM_MODEL_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-v2`,
-        LLM_MODEL_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
+        AWS_KB_ID: askAwsKnowledgeBase.knowledgeBaseId,
+        OPS_LLM_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
+        // AWS_LLM_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/amazon.titan-text-premier-v1:0`,
+        AWS_LLM_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
       },
     });
 
@@ -431,7 +315,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
         "states:SendTaskFailure",
         "states:SendTaskSuccess",
       ],
-      resources: [opsHealthAgent.aliasArn as string, opsHealthKnowledgeBase.knowledgeBaseArn, opsSecHubKnowledgeBase.knowledgeBaseArn, cfnIndex.attrArn, `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/*`, 'arn:aws:dynamodb:*', 'arn:aws:states:*'],
+      resources: [opsHealthAgent.aliasArn as string, opsHealthKnowledgeBase.knowledgeBaseArn, opsSecHubKnowledgeBase.knowledgeBaseArn, askAwsKnowledgeBase.knowledgeBaseArn, `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/*`, 'arn:aws:dynamodb:*', 'arn:aws:states:*'],
       effect: cdk.aws_iam.Effect.ALLOW
     });
 
@@ -462,6 +346,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     });
     eventAiProcessingRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'));
     eventAiProcessingRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSLambda_FullAccess'));
+    eventAiProcessingRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
     //without KMS permissions, startInstance call would not work if instance volume is encrypted by key
     eventAiProcessingRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -478,6 +363,10 @@ export class OpsHealthAgentStack extends cdk.Stack {
     /******************************************************************************* */
 
     /*** State machine for AI agent integration microservices *****/
+    const aiIntegrationSfnLogGroup = new logs.LogGroup(this, 'AiIntegrationSfnLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
     const aiIntegrationSfn = new sfn.StateMachine(this, 'AiAgentIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-integration.asl')).toString().trim()),
       definitionSubstitutions: {
@@ -489,7 +378,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,
       timeout: cdk.Duration.minutes(5),
-      role: eventAiProcessingRole
+      role: eventAiProcessingRole,
+      logs: {
+        destination: aiIntegrationSfnLogGroup,
+        level: sfn.LogLevel.ERROR,
+        includeExecutionData: true,
+      }
     });
 
     const integrationRule = new events.Rule(this, 'OpsIntegrationWithAiRule', {
@@ -512,6 +406,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     });
     aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'));
     aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSLambda_FullAccess'));
+    aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
     aiOpsChatRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
@@ -530,6 +425,10 @@ export class OpsHealthAgentStack extends cdk.Stack {
     /******************************************************************************* */
 
     /*** State machine for slack command event integration microservices *****/
+    const aiOpsChatSfnLogGroup = new logs.LogGroup(this, 'AiOpsChatSfnLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
     const aiOpsChatSfn = new sfn.StateMachine(this, 'AiOpsChatIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-chat.asl')).toString().trim()),
       definitionSubstitutions: {
@@ -543,7 +442,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,
       timeout: cdk.Duration.minutes(5),
-      role: aiOpsChatRole
+      role: aiOpsChatRole,
+      logs: {
+        destination: aiOpsChatSfnLogGroup,
+        level: sfn.LogLevel.ERROR,
+        includeExecutionData: true,
+      }
     });
 
     const aiOpsChatRule = new events.Rule(this, 'AiOpsChatRule', {

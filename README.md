@@ -1,5 +1,8 @@
 # Managing cloud operational events at scale by AI
-https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/
+[Original blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
+## Change log since post
+- AI agent now protected by Amazon Bedrock Guardrails
+- Removed service dependency on Amazon Kendra - The 'ask-aws' endpoint now uses Amazon Bedrock Knowledge Bases as the RAG source. It contains the latest AWS documentation on selected topics. You must synchronize the 'AskAwsKnowledgeBase' knowledge base data source to ensure the underlying AI model is using the latest documentation. Your can do this using the [AWS Management Console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/knowledge-bases) after the solution is deployed.
 
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 

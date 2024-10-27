@@ -41,7 +41,16 @@
             "Lambda.DependencyFailedException"
           ],
           "IntervalSeconds": 2,
-          "MaxAttempts": 999,
+          "MaxAttempts": 99,
+          "BackoffRate": 2,
+          "MaxDelaySeconds": 120
+        },
+        {
+          "ErrorEquals": [
+            "AiAgentError"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 5,
           "BackoffRate": 2,
           "MaxDelaySeconds": 120
         }
@@ -72,7 +81,16 @@
             "Lambda.DependencyFailedException"
           ],
           "IntervalSeconds": 2,
-          "MaxAttempts": 999,
+          "MaxAttempts": 99,
+          "BackoffRate": 2,
+          "MaxDelaySeconds": 120
+        },
+        {
+          "ErrorEquals": [
+            "AiAgentError"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 5,
           "BackoffRate": 2,
           "MaxDelaySeconds": 120
         }

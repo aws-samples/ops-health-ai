@@ -1,6 +1,4 @@
-import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts"
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3"
-import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import {
   BedrockAgentRuntimeClient,
   InvokeAgentCommand,
@@ -18,9 +16,27 @@ interface AgentResponse {
   ExpiresAt: String
 }
 
-let credentialProvider = fromNodeProviderChain({})
-const sts = new STSClient({ credentials: credentialProvider });
-const getCallerIdentityCommand = new GetCallerIdentityCommand({});
+type ErrorName = 'AiAgentError'
+class AiAgentError extends Error {
+  name: ErrorName;
+  message: string;
+  cause: any;
+  constructor({
+    name,
+    message,
+    cause
+  }: {
+    name: ErrorName;
+    message: string;
+    cause?: any;
+  }) {
+    super();
+    this.name = name;
+    this.message = message;
+    this.cause = cause;
+  }
+}
+
 const bedrockAgent = new BedrockAgentRuntimeClient();
 
 // Lambda handler
@@ -47,10 +63,6 @@ export const lambdaHandler = async (event: any): Promise<AgentResponse> => {
   }
 
   const input: InvokeAgentRequest = {
-    // sessionState: {
-    //   sessionAttributes,
-    //   promptSessionAttributes,
-    // },
     agentId: process.env.AGENT_ID,
     agentAliasId: process.env.AGENT_ALIAS_ID,
     sessionId: sessionId,
@@ -58,25 +70,34 @@ export const lambdaHandler = async (event: any): Promise<AgentResponse> => {
   };
 
   const command: InvokeAgentCommand = new InvokeAgentCommand(input);
-  const response: InvokeAgentResponse = await bedrockAgent.send(command);
+  try {
+    const response: InvokeAgentResponse = await bedrockAgent.send(command);
 
-  const chunks = [];
-  const completion = response.completion || [];
-  for await (const chunk of completion) {
-    if (chunk.chunk && chunk.chunk.bytes) {
-      const output = Buffer.from(chunk.chunk.bytes).toString('utf-8');
-      chunks.push(output);
+    const chunks = [];
+    const completion = response.completion || [];
+    for await (const chunk of completion) {
+      if (chunk.chunk && chunk.chunk.bytes) {
+        const output = Buffer.from(chunk.chunk.bytes).toString('utf-8');
+        chunks.push(output);
+      }
     }
-  }
 
-  //normalize response
-  const resp = {
-    Output: {
-      Text: chunks.join(' ')
-    },
-    SessionId: response.sessionId,
-    ExpiresAt: sessionExpiresAt.toString()
+    //normalize response
+    const resp = {
+      Output: {
+        Text: chunks.join(' ')
+      },
+      SessionId: response.sessionId,
+      ExpiresAt: sessionExpiresAt.toString()
+    }
+    console.log("Agent response: ", JSON.stringify(resp));
+    return resp
+  } catch (err) {
+    console.log("Invoke Agent error occurred.");
+    throw new AiAgentError({
+      name: 'AiAgentError',
+      message: 'AI agent retry-able error',
+      cause: err
+    })
   }
-  console.log("Agent response: ", JSON.stringify(resp));
-  return resp
 }

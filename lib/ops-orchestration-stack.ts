@@ -38,6 +38,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     });
     opsOrchestrationRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'));
     opsOrchestrationRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSLambda_FullAccess'));
+    opsOrchestrationRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
     opsOrchestrationRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
@@ -169,6 +170,10 @@ export class OpsOrchestrationStack extends cdk.Stack {
     // -------------------------------------------------------
 
     /********* Main event processing state machine *************************/
+    const opsOrchestrationSfnLogGroup = new logs.LogGroup(this, 'OpsOrchestrationSfnLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
     const opsOrchestrationSfn = new sfn.StateMachine(this, 'OpsOrchestration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-orchestration.asl')).toString().trim()),
       definitionSubstitutions: {
@@ -179,7 +184,12 @@ export class OpsOrchestrationStack extends cdk.Stack {
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,
       timeout: cdk.Duration.minutes(5),
-      role: opsOrchestrationRole
+      role: opsOrchestrationRole,
+      logs: {
+        destination: opsOrchestrationSfnLogGroup,
+        level: sfn.LogLevel.ERROR,
+        includeExecutionData: true,
+      }
     });
 
     const opsOrchestrationSubscriptionRule1 = new events.Rule(this, 'OpsOrchestrationSubscription1', {
@@ -217,6 +227,10 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /******************************************************************************* */
 
     /*** State machine for notification service *****/
+    const notificationSfnLogGroup = new logs.LogGroup(this, 'NotificationSfnLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
     const notificationSfn = new sfn.StateMachine(this, 'OpsNotification', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-notification.asl')).toString().trim()),
       definitionSubstitutions: {
@@ -230,7 +244,12 @@ export class OpsOrchestrationStack extends cdk.Stack {
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,
       timeout: cdk.Duration.minutes(5),
-      role: opsOrchestrationRole
+      role: opsOrchestrationRole,
+      logs: {
+        destination: notificationSfnLogGroup,
+        level: sfn.LogLevel.ERROR,
+        includeExecutionData: true,
+      }
     });
 
     const notificationRule = new events.Rule(this, 'OpsNotificationRule', {

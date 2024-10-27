@@ -8,6 +8,7 @@ node_modules
 cdk.out
 .vscode
 lambda/src/events
+**/*.bkup
 prompt-templates/bkup
 *.drawio
 deployment
