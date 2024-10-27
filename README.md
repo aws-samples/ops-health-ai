@@ -117,7 +117,7 @@ Run below AWS CLIcommand:
 ```shell
 aws events put-events --entries file://test-events/mockup-events.json
 ```
-You will receive Slack messages notifying you about the mockup event and then followed by automatic feedbacks by the AI assistant. You do NOT need to click the “Accept” or “Discharge” buttons.
+You will receive Slack messages notifying you about the mockup event and then followed by automatic feedbacks by the AI assistant after a few seconds. You do NOT need to click the “Accept” or “Discharge” buttons included in the message, these buttons are only useful when AI assistant failed to acknowledge the event, they are used as a fallback mechanism for human user to intervene.
 
 ### Method 2 - Using AWS Console
 Go to EventBridge console in your chosen admin account, ensure you are in the right region, go to 'Event buses' and fire off the below test event that mimic a real Health event. You should receive Slack messages for notification and approval request emails. Then start chatting with your assistant about the test events.

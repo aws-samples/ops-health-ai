@@ -126,6 +126,27 @@ Resources:
         EntryPoints:
         - app.ts
 
+  CallbackEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/callbackEvent/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          CALLBACK_URL: ""
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
   InvokeAgentFunction:
     Type: AWS::Serverless::Function
     Properties:

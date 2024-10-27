@@ -106,7 +106,9 @@ export class OpsOrchestrationStack extends cdk.Stack {
         "s3:GetObject",
         "s3:GetBucketLocation",
         "s3:ListMultipartUploadParts",
-        "s3:PutObject"
+        "s3:PutObject",
+        "states:SendTaskSuccess",
+        "states:SendTaskFailure"
       ],
       resources: ['*']
     }));
@@ -168,6 +170,35 @@ export class OpsOrchestrationStack extends cdk.Stack {
     });
 
     // -------------------------------------------------------
+
+    /*** Lambda function to serve manual State machine callbacks from human user ***/
+    const eventCallbackFunction = new lambda.Function(this, 'EventCallback', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/CallbackEventFunction'),
+      handler: 'app.lambdaHandler',
+      timeout: cdk.Duration.seconds(5),
+      memorySize: 128,
+      architecture: lambda.Architecture.ARM_64,
+      reservedConcurrentExecutions: 2,
+      role: lambdaExecutionRole,
+      tracing: lambda.Tracing.DISABLED,
+      environment: {
+      },
+    });
+
+    new logs.LogGroup(this, 'EventCallbackLogGroup', {
+      logGroupName: `/aws/lambda/${eventCallbackFunction.functionName}`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const eventCallbackApi = this.restApi.root.addResource('event-callback');
+    eventCallbackApi.addMethod(
+      'GET',
+      new LambdaIntegration(eventCallbackFunction, { proxy: true }),
+    );
+    new cdk.CfnOutput(this, "EventCallbackApiUrl", { value: `${this.restApi.url}event-callback` })
+    /******************************************************************************* */
 
     /********* Main event processing state machine *************************/
     const opsOrchestrationSfnLogGroup = new logs.LogGroup(this, 'OpsOrchestrationSfnLogs', {
