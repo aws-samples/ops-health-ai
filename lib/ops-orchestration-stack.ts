@@ -64,6 +64,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
       restApiName: `${cdk.Stack.of(this).stackName}-aiOpsApi`,
       description: `${cdk.Stack.of(this).stackName} Rest API Gateway`,
       cloudWatchRole: true,
+      cloudWatchRoleRemovalPolicy: cdk.RemovalPolicy.DESTROY,
       deployOptions: {
         stageName: 'prod',
         tracingEnabled: false, // enable x-ray

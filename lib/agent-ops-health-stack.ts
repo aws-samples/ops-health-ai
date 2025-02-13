@@ -27,8 +27,7 @@ export interface OpsHealthAgentProps extends cdk.StackProps {
   sourceEventDomains: string[]
   appEventDomainPrefix: string
   slackMeFunction: lambda.IFunction
-  guardrailIdentifier: string,
-  guardrailVersion: string
+  guardrailArn: string
 }
 
 export class OpsHealthAgentStack extends cdk.Stack {
@@ -39,7 +38,10 @@ export class OpsHealthAgentStack extends cdk.Stack {
     /******************* DynamoDB Table to manage user chat sessions *****************/
     const chatUserSessionsTable = new dynamodb.Table(this, 'ChatUserSessionsTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+        recoveryPeriodInDays: 35
+      },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       partitionKey: {
         name: "PK",
@@ -57,7 +59,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const opsHealthBucket = s3.Bucket.fromBucketName(this, 'OpsHealthBucket', props.opsHealthBucketName);
     const opsSecHubBucket = s3.Bucket.fromBucketName(this, 'OpsSecHubBucket', props.opsSecHubBucketName);
 
-    const opsHealthKnowledgeBase = new bedrock.KnowledgeBase(this, 'OpsHealthKnowledgeBase', {
+    const opsHealthKnowledgeBase = new bedrock.VectorKnowledgeBase(this, 'OpsHealthKnowledgeBase', {
       name: 'OpsHealthKnowledgeBase',
       embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
       instruction: `Use this knowledge base for details about operational health events, issues, and lifecycle notifications.`,
@@ -73,7 +75,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       })
     });
 
-    const opsSecHubKnowledgeBase = new bedrock.KnowledgeBase(this, 'OpsSecHubKnowledgeBase', {
+    const opsSecHubKnowledgeBase = new bedrock.VectorKnowledgeBase(this, 'OpsSecHubKnowledgeBase', {
       name: 'OpsSecHubKnowledgeBase',
       embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
       instruction: `Use this knowledge base for details about security findings, issues, risks, events.`,
@@ -89,7 +91,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       })
     });
 
-    const askAwsKnowledgeBase = new bedrock.KnowledgeBase(this, 'AskAwsKnowledgeBase', {
+    const askAwsKnowledgeBase = new bedrock.VectorKnowledgeBase(this, 'AskAwsKnowledgeBase', {
       name: 'AskAwsKnowledgeBase',
       embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
       instruction: `Use this knowledge base for guidance and best practices from AWS.`,
@@ -107,6 +109,9 @@ export class OpsHealthAgentStack extends cdk.Stack {
       })
     });
 
+    const importedGuardrail = bedrock.Guardrail.fromGuardrailAttributes(this, 'TestGuardrail', {
+      guardrailArn: props.guardrailArn
+    });
     const opsHealthAgent = new bedrock.Agent(this, 'OpsHealthAgent', {
       name: 'OpsAgent',
       description: 'The agent for consultation on operational events, issues, and/or security findings',
@@ -116,49 +121,47 @@ export class OpsHealthAgentStack extends cdk.Stack {
       idleSessionTTL: cdk.Duration.minutes(15),
       // knowledgeBases: [opsHealthKnowledgeBase, opsSecHubKnowledgeBase],
       shouldPrepareAgent: true,
-      aliasName: 'OpsAgent',
-      guardrailConfiguration: {
-        guardrailVersion: props.guardrailVersion,
-        guardrailId: props.guardrailIdentifier
-      },
+      guardrail: importedGuardrail,
       existingRole: new iam.Role(this, 'OpsHealthAgentRole', {
         assumedBy: new iam.ServicePrincipal('bedrock.amazonaws.com'),
         managedPolicies: [
           iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonBedrockFullAccess')
         ],
       }),
-      promptOverrideConfiguration: {
-        promptConfigurations: [
+      promptOverrideConfiguration: bedrock.PromptOverrideConfiguration.fromSteps(
+        [
           {
-            promptType: bedrock.PromptType.PRE_PROCESSING,
-            inferenceConfiguration: {
+            stepType: bedrock.AgentStepType.PRE_PROCESSING,
+            stepEnabled: true,
+            customPromptTemplate: fs.readFileSync(path.join(__dirname, '../prompt-templates/ops-agent/preprocessing.xml')).toString(),
+            inferenceConfig: {
               temperature: 0,
               topP: 1,
               topK: 250,
               stopSequences: ['\n\nHuman:'],
               maximumLength: 2048,
             },
-            promptCreationMode: bedrock.PromptCreationMode.OVERRIDDEN,
-            promptState: bedrock.PromptState.ENABLED,
-            basePromptTemplate: fs.readFileSync(path.join(__dirname, '../prompt-templates/ops-agent/preprocessing.xml')).toString(),
-            parserMode: bedrock.ParserMode.DEFAULT
           },
           {
-            promptType: bedrock.PromptType.ORCHESTRATION,
-            inferenceConfiguration: {
+            stepType: bedrock.AgentStepType.ORCHESTRATION,
+            stepEnabled: true,
+            customPromptTemplate: fs.readFileSync(path.join(__dirname, '../prompt-templates/ops-agent/orchestration.xml')).toString(),
+            inferenceConfig: {
               temperature: 0,
               topP: 1,
               topK: 250,
               stopSequences: ['</invoke>', '</answer>', '</error>'],
               maximumLength: 2048,
             },
-            promptCreationMode: bedrock.PromptCreationMode.OVERRIDDEN,
-            promptState: bedrock.PromptState.ENABLED,
-            basePromptTemplate: fs.readFileSync(path.join(__dirname, '../prompt-templates/ops-agent/orchestration.xml')).toString(),
-            parserMode: bedrock.ParserMode.DEFAULT
-          }
+          },
         ]
-      }
+      )
+    });
+    const opsHealthAgentAlias = new bedrock.AgentAlias(this, 'OpsAgentAlias', {
+      aliasName: 'OpsAgent',
+      agent: opsHealthAgent,
+      // agentVersion: '1', // optional
+      description: 'OpsAgent prod alias'
     });
 
     const healthBufferKbSyncSqs = new sqs.Queue(this, 'BufferHealthKbSyncSqs', {
@@ -247,7 +250,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       reservedConcurrentExecutions: 10,
       environment: {
         AGENT_ID: opsHealthAgent.agentId,
-        AGENT_ALIAS_ID: opsHealthAgent.aliasId as string,
+        AGENT_ALIAS_ID: opsHealthAgentAlias.aliasId as string,
         PAYLOAD_BUCKET: props.transientPayloadsBucketName
       },
     });
@@ -315,7 +318,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
         "states:SendTaskFailure",
         "states:SendTaskSuccess",
       ],
-      resources: [opsHealthAgent.aliasArn as string, opsHealthKnowledgeBase.knowledgeBaseArn, opsSecHubKnowledgeBase.knowledgeBaseArn, askAwsKnowledgeBase.knowledgeBaseArn, `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/*`, 'arn:aws:dynamodb:*', 'arn:aws:states:*'],
+      resources: [opsHealthAgentAlias.aliasArn as string, opsHealthKnowledgeBase.knowledgeBaseArn, opsSecHubKnowledgeBase.knowledgeBaseArn, askAwsKnowledgeBase.knowledgeBaseArn, `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/*`, 'arn:aws:dynamodb:*', 'arn:aws:states:*'],
       effect: cdk.aws_iam.Effect.ALLOW
     });
 
@@ -325,16 +328,11 @@ export class OpsHealthAgentStack extends cdk.Stack {
       }),
     );
 
-    const osAgentActionGroup = new bedrock.AgentActionGroup(this, 'OpsHealthAgentActionGroup', {
-      actionGroupName: 'OpsHealthAgentActionGroup', // connot have '-' or regex will fail matching
+    const osAgentActionGroup = new bedrock.AgentActionGroup({
+      name: 'OpsHealthAgentActionGroup', // connot have '-' or regex will fail matching
       description: 'The action group for cloud operations assistant agent',
-      apiSchema: bedrock.S3ApiSchema.fromAsset(
-        path.join(__dirname, './schema/api-ops.json')
-      ),
-      actionGroupState: 'ENABLED',
-      actionGroupExecutor: {
-        lambda: opsHealthActionGroupFunction,
-      },
+      apiSchema: bedrock.ApiSchema.fromLocalAsset(path.join(__dirname, './schema/api-ops.json')),
+      executor: bedrock.ActionGroupExecutor.fromlambdaFunction(opsHealthActionGroupFunction),
     });
     opsHealthAgent.addActionGroup(osAgentActionGroup);
 

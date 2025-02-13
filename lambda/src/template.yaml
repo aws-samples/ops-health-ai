@@ -170,4 +170,27 @@ Resources:
         EntryPoints:
         - app.ts
 
+  InvokeFlowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/invokeFlow/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 60
+      MemorySize: 128
+      Environment:
+        Variables:
+          FLOW_ID: "string"
+          FLOW_ALIAS_ID: "string"
+          PAYLOAD_BUCKET: "string"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
 
