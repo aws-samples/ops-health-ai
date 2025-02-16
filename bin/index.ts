@@ -57,11 +57,11 @@ const statefulStack = new StatefulStack(app, 'AiOpsStatefulStack', {
 
 /* ------  Admin account setup, make sure you cover all regions your organization has footprint in */
 for (const region of eventRegions) {
-  new OrgAdminOrgStack(app, `OrgAdminOrgStack-${region}`, {
-    stackName: `OrgAdminOrgStack-${region}`,
+  new OrgAdminOrgStack(app, `AiOpsOrgAdminStack-${region}`, {
+    stackName: `AiOpsOrgAdminStack-${region}`,
     tags: {
       env: 'prod',
-      "ManagedBy": `OrgAdminOrgStack-${region}`,
+      "ManagedBy": `AiOpsOrgAdminStack-${region}`,
       "auto-delete": "no"
     },
     env: {
@@ -94,11 +94,11 @@ const dataSourcingStack = new DataSourcingStack(app, 'AiOpsDataSourcingStack', {
   aiOpsEventBus: statefulStack.aiOpsEventBus
 });
 
-const opsOrchestrationStack = new OpsOrchestrationStack(app, 'OpsOrchestrationStack', {
-  stackName: `OpsOrchestrationStack`,
+const opsOrchestrationStack = new OpsOrchestrationStack(app, 'AiOpsOrchestrationStack', {
+  stackName: `AiOpsOrchestrationStack`,
   tags: {
     env: 'prod',
-    "ManagedBy": 'HealthProcessingStack',
+    "ManagedBy": 'AiOpsOrchestrationStack',
     "auto-delete": "no"
   },
   env: {
@@ -116,11 +116,11 @@ const opsOrchestrationStack = new OpsOrchestrationStack(app, 'OpsOrchestrationSt
   appEventDomainPrefix: appEventDomainPrefix
 });
 
-const opsEventLakeStack = new OpsEventLakeStack(app, 'OpsEventLakeStack', {
-  stackName: `OpsEventLakeStack`,
+const opsEventLakeStack = new OpsEventLakeStack(app, 'AiOpsEventLakeStack', {
+  stackName: `AiOpsEventLakeStack`,
   tags: {
     env: 'prod',
-    "ManagedBy": 'HealthProcessingStack',
+    "ManagedBy": 'AiOpsEventLakeStack',
     "auto-delete": "no"
   },
   env: {
@@ -133,11 +133,11 @@ const opsEventLakeStack = new OpsEventLakeStack(app, 'OpsEventLakeStack', {
   sechubEventDomains: sechubEventDomains
 });
 
-const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OpsHealthAgentStack', {
-  stackName: `OpsHealthAgentStack`,
+const opsHealthAgentStack = new OpsHealthAgentStack(app, 'AiOpsHealthAgentStack', {
+  stackName: `AiOpsHealthAgentStack`,
   tags: {
     env: 'prod',
-    "ManagedBy": 'OpsHealthAgentStack',
+    "ManagedBy": 'AiOpsHealthAgentStack',
     "auto-delete": "no"
 
   },
@@ -156,7 +156,6 @@ const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OpsHealthAgentStack', 
   sourceEventDomains: sourceEventDomains,
   appEventDomainPrefix: appEventDomainPrefix,
   slackMeFunction: opsOrchestrationStack.slackMeFunction,
-  guardrailIdentifier: statefulStack.bedrockGuardrail.attrGuardrailId,
-  guardrailVersion: statefulStack.bedrockGuardrailVersion.attrVersion
+  guardrailArn: statefulStack.bedrockGuardrail.attrGuardrailArn
 });
 

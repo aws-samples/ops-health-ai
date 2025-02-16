@@ -260,7 +260,10 @@ export class StatefulStack extends cdk.Stack {
     /******************* DynamoDB Table to track event reaction status *****************/
     this.eventManagementTable = new dynamodb.Table(this, 'EventManagementTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+        recoveryPeriodInDays: 35
+      },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       partitionKey: {
         name: "PK",
@@ -272,7 +275,10 @@ export class StatefulStack extends cdk.Stack {
     /******************* DynamoDB Table to mock up issue ticket tool *****************/
     this.ticketManagementTable = new dynamodb.Table(this, 'TicketManagementTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+        recoveryPeriodInDays: 35
+      },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       partitionKey: {
         name: "PK",
