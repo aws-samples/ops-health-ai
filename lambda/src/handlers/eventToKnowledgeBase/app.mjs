@@ -48,9 +48,27 @@ export const lambdaHandler = async (event, context) => {
 
     let plainText = jsonToPlainText(eventBody, options);
     let s3ObjKey = `${eventSource}/${eventRegion}/${accountId}/${eventId}.txt`
+    let s3MetaObjKey = `${eventSource}/${eventRegion}/${accountId}/${eventId}.txt.metadata.json`
     console.log("Converted plain text: ", plainText);
     console.log("Saving to: ", `${targetS3}/${s3ObjKey}`);
-    return await uploadFile(targetS3, s3ObjKey, plainText)
+    uploadFile(targetS3, s3ObjKey, plainText)
+
+    // handle metadata to be saved along with text file
+    let metaData = {
+      "metadataAttributes": {
+          "eventArn": eventBody.detail ? eventBody.detail.eventArn : "",
+          "eventImpactStartTime": eventBody.detail ? eventBody.detail.startTime : "",
+          "eventLastUpdatedTime": eventBody.detail ? eventBody.detail.lastUpdatedTime : "",
+          "affectedAccount": eventBody.detail ? eventBody.detail.affectedAccount : "",
+          "service": eventBody.detail ? eventBody.detail.service : "",
+          "eventTypeCategory": eventBody.detail ? eventBody.detail.eventTypeCategory : "",
+          "eventTypeCode": eventBody.detail ? eventBody.detail.eventTypeCode : ""
+      }
+    }
+
+    let metaDataContent = JSON.stringify(metaData)
+    console.log("Saving metadata to: ", `${targetS3}/${s3MetaObjKey}`);
+    return await uploadFile(targetS3, s3MetaObjKey, metaDataContent)
   }
 }
 

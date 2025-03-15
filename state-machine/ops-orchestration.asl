@@ -341,11 +341,12 @@
     },
     "EmitHealthEventUpdated": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::events:putEvents",
+      "Resource": "arn:aws:states:::events:putEvents.waitForTaskToken",
       "Parameters": {
         "Entries": [
           {
             "Detail": {
+              "TaskToken.$": "$$.Task.Token",
               "CarryingPayload.$": "$"
             },
             "DetailType": "Health.EventUpdated",
@@ -354,9 +355,32 @@
           }
         ]
       },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Comment": "wait confirmation timed out",
+          "Next": "EmitHealthEventUpdated",
+          "ResultPath": "$.cause"
+        },
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "Comment": "Operator discharged event.",
+          "Next": "Finished",
+          "ResultPath": "$.cause"
+        }
+      ],
+      "TimeoutSeconds": 3000,
       "End": true
     },
     "SecEventUpdate-ToDo": {
+      "Type": "Pass",
+      "Next": "Finished"
+    },
+    "Finished": {
       "Type": "Pass",
       "End": true
     }

@@ -69,10 +69,11 @@ export class OpsHealthAgentStack extends cdk.Stack {
       bucket: opsHealthBucket,
       knowledgeBase: opsHealthKnowledgeBase,
       dataSourceName: 'ops-health',
-      chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
-        maxTokens: 1000,
-        overlapPercentage: 10,
-      })
+      chunkingStrategy: bedrock.ChunkingStrategy.NONE,
+      // chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
+      //   maxTokens: 1000,
+      //   overlapPercentage: 10,
+      // })
     });
 
     const opsSecHubKnowledgeBase = new bedrock.VectorKnowledgeBase(this, 'OpsSecHubKnowledgeBase', {
@@ -100,7 +101,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const askAwsDataSource = new bedrock.WebCrawlerDataSource(this, 'AskAwsDataSource', {
       knowledgeBase: askAwsKnowledgeBase,
       dataSourceName: 'ask-aws',
-      sourceUrls: ['https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html','https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html','https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-systems-manager.html','https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-runbook-reference.html'],
+      sourceUrls: ['https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html','https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html','https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-systems-manager.html','https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-runbook-reference.html','https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html'],
       crawlingScope: bedrock.CrawlingScope.DEFAULT,
       crawlingRate: 100,
       chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
@@ -115,7 +116,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const opsHealthAgent = new bedrock.Agent(this, 'OpsHealthAgent', {
       name: 'OpsAgent',
       description: 'The agent for consultation on operational events, issues, and/or security findings',
-      foundationModel: bedrock.BedrockFoundationModel.ANTHROPIC_CLAUDE_HAIKU_V1_0,
+      foundationModel: bedrock.BedrockFoundationModel.ANTHROPIC_CLAUDE_3_5_HAIKU_V1_0,
       instruction:
         'You are MyCompany\'s cloud operations assistant that provides details or advice related to operational events, issues, and security findings.',
       idleSessionTTL: cdk.Duration.minutes(15),
@@ -158,7 +159,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       )
     });
     const opsHealthAgentAlias = new bedrock.AgentAlias(this, 'OpsAgentAlias', {
-      aliasName: 'OpsAgent',
+      // aliasName: 'OpsAgent', // optional
       agent: opsHealthAgent,
       // agentVersion: '1', // optional
       description: 'OpsAgent prod alias'
@@ -240,20 +241,39 @@ export class OpsHealthAgentStack extends cdk.Stack {
     });
 
     /*** Bedrock agent and agent action groups **************/
-    const invokeAgentFunction = new lambda.Function(this, 'InvokeAgentFunction', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/InvokeAgentFunction'),
-      handler: 'app.lambdaHandler',
-      timeout: cdk.Duration.seconds(600),
-      memorySize: 128,
+    // const invokeAgentFunction = new lambda.Function(this, 'InvokeAgentFunction', {
+    //   runtime: lambda.Runtime.NODEJS_18_X,
+    //   code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/InvokeAgentFunction'),
+    //   handler: 'app.lambdaHandler',
+    //   timeout: cdk.Duration.seconds(600),
+    //   memorySize: 128,
+    //   architecture: lambda.Architecture.ARM_64,
+    //   reservedConcurrentExecutions: 10,
+    //   environment: {
+    //     AGENT_ID: opsHealthAgent.agentId,
+    //     AGENT_ALIAS_ID: opsHealthAgentAlias.aliasId as string,
+    //     PAYLOAD_BUCKET: props.transientPayloadsBucketName
+    //   },
+    // });
+
+    // ===== experimental code =====
+    const invokeAgentFunction = new lambda.Function(this, 'OpsAgentFunction', {
+      runtime: lambda.Runtime.PYTHON_3_11,
+      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/OpsAgentFunction'),
+      handler: 'app.lambda_handler',
+      timeout: cdk.Duration.seconds(900), // long duration to accommodate throttling retries, make sure your AWS account and region has the appropriate quota for used LLMs
+      memorySize: 256,
       architecture: lambda.Architecture.ARM_64,
-      reservedConcurrentExecutions: 10,
+      reservedConcurrentExecutions: 1, // Allowed concurrency set to 1 to accommodate LLM API throttling retries, make sure your AWS account and region has the appropriate API quota for used LLMs if faster processing speed needed.
       environment: {
-        AGENT_ID: opsHealthAgent.agentId,
-        AGENT_ALIAS_ID: opsHealthAgentAlias.aliasId as string,
-        PAYLOAD_BUCKET: props.transientPayloadsBucketName
+        MEM_BUCKET: props.transientPayloadsBucketName,
+        OPS_KNOWLEDGE_BASE_ID: opsHealthAgent.agentId,
+        SECHUB_KNOWLEDGE_BASE_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
+        AWS_KB_ID: askAwsKnowledgeBase.knowledgeBaseId,
+        TICKET_TABLE: props.ticketManagementTableName,
       },
     });
+    // ============================
 
     const invokeAgentLogGroup = new logs.LogGroup(this, 'InvokeAgentLogGroup', {
       logGroupName: `/aws/lambda/${invokeAgentFunction.functionName}`,
@@ -264,6 +284,14 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const invokeAgentPolicy = new iam.PolicyStatement({
       actions: [
         "bedrock:InvokeAgent",
+        "bedrock:invokeModel",
+        "bedrock:GetInferenceProfile",
+        "bedrock:ListInferenceProfiles",
+        "bedrock:Retrieve",
+        "bedrock:RetrieveAndGenerate",
+        "dynamodb:*",
+        "states:SendTaskFailure",
+        "states:SendTaskSuccess",
         "s3:ListBucket",
         "s3:GetObject",
         "s3:GetBucketLocation",
@@ -362,6 +390,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
 
     /*** State machine for AI agent integration microservices *****/
     const aiIntegrationSfnLogGroup = new logs.LogGroup(this, 'AiIntegrationSfnLogs', {
+      logGroupName: `/aws/vendedlogs/states/AiIntegrationSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -388,7 +417,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       eventBus: props.aiOpsEventBus,
       eventPattern: {
         source: [`${props.appEventDomainPrefix}.ops-orchestration`],
-        detailType: [`Health.EventAdded`, `SecHub.EventAdded`]
+        detailType: [`Health.EventAdded`, `Health.EventUpdated`, `SecHub.EventAdded`]
       },
       ruleName: 'OpsIntegrationWithAiRule',
       description: 'Ops event processing integration with AI services.',
@@ -424,6 +453,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
 
     /*** State machine for slack command event integration microservices *****/
     const aiOpsChatSfnLogGroup = new logs.LogGroup(this, 'AiOpsChatSfnLogs', {
+      logGroupName: `/aws/vendedlogs/states/AiOpsChatSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });

@@ -73,7 +73,7 @@ export class OrgAdminOrgStack extends cdk.Stack {
       new events.Rule(this, `SecurityhubReportRule`, {
         schedule: events.Schedule.cron({
           minute: "0",
-          hour: "23",
+          hour: "15",
         }),
         targets: [new evtTargets.LambdaFunction(secHubReportFunction, {
           retryAttempts: 2, // Max number of retries for Lambda invocation

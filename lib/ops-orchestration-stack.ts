@@ -56,6 +56,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /***************** Rest API and API integration to call Lambda functions ******* */
     // uncomment the below to disable logging when troubleshooting needed
     const logGroup = new logs.LogGroup(this, "ApiGatewayAccessLogs", {
+      logGroupName: `/aws/vendedlogs/apigateway/AiOpsChatSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -205,6 +206,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     const opsOrchestrationSfnLogGroup = new logs.LogGroup(this, 'OpsOrchestrationSfnLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      logGroupName: `/aws/vendedlogs/states/OpsOrchestrationSfnLogs`,
     });
     const opsOrchestrationSfn = new sfn.StateMachine(this, 'OpsOrchestration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-orchestration.asl')).toString().trim()),
@@ -262,6 +264,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     const notificationSfnLogGroup = new logs.LogGroup(this, 'NotificationSfnLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      logGroupName: `/aws/vendedlogs/states/NotificationSfnLogs`,
     });
     const notificationSfn = new sfn.StateMachine(this, 'OpsNotification', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-notification.asl')).toString().trim()),

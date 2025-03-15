@@ -10,6 +10,22 @@ Globals:
         - arm64
 
 Resources:
+  OpsAgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/opsAgent/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 120
+      MemorySize: 128
+      Environment:
+        Variables:
+          MEM_BUCKET: ""
+          OPS_KNOWLEDGE_BASE_ID: ""
+          SECHUB_KNOWLEDGE_BASE_ID: ""
+          AWS_KB_ID: ""
+          TICKET_TABLE: ""
+
   SlackMeFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -170,27 +186,5 @@ Resources:
         EntryPoints:
         - app.ts
 
-  InvokeFlowFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      PackageType: Zip
-      CodeUri: handlers/invokeFlow/
-      Handler: app.lambdaHandler
-      Runtime: nodejs18.x
-      Timeout: 60
-      MemorySize: 128
-      Environment:
-        Variables:
-          FLOW_ID: "string"
-          FLOW_ALIAS_ID: "string"
-          PAYLOAD_BUCKET: "string"
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: "es2020"
-        Sourcemap: false
-        EntryPoints:
-        - app.ts
 
 

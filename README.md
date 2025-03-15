@@ -1,8 +1,9 @@
 # Managing cloud operational events at scale by AI
 [Original blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
 ## Change log since post
-- AI agent now protected by Amazon Bedrock Guardrails
-- Removed service dependency on Amazon Kendra - The 'ask-aws' endpoint now uses Amazon Bedrock Knowledge Bases as the RAG source. It contains the latest AWS documentation on selected topics. You must synchronize the 'AskAwsKnowledgeBase' knowledge base data source to ensure the underlying AI model is using the latest documentation. Your can do this using the [AWS Management Console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/knowledge-bases) after the solution is deployed.
+- Modernized underlying LLMs to use Amazon Nova and Claud 3.5 Haiku
+- Implemented a full agentic flow to accommodate better customization and removed dependency on Amazon Bedrock Agent.
+- Removed service dependency on Amazon Kendra - The 'ask-aws' agent now uses Amazon Bedrock Knowledge Bases as the RAG source. It contains the latest AWS documentation on selected topics. You must synchronize the 'AskAwsKnowledgeBase' knowledge base data source use the latest documentation. Your can do this using the [AWS Management Console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/knowledge-bases) after the solution is deployed (make sure the right region is selected)
 
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
@@ -115,7 +116,9 @@ Capture the “HandleSlackCommApiUrl” stack output URL, go to your [Slack app]
 ### Method 1 - Using AWS CLI
 Run below AWS CLIcommand:
 ```shell
-aws events put-events --entries file://test-events/mockup-events.json
+aws events put-events --entries file://test-events/mockup-ops-event.json
+aws events put-events --entries file://test-events/mockup-ops-event2.json
+aws events put-events --entries file://test-events/mockup-sec-finding.json
 ```
 You will receive Slack messages notifying you about the mockup event and then followed by automatic feedbacks by the AI assistant after a few seconds. You do NOT need to click the “Accept” or “Discharge” buttons included in the message, these buttons are only useful when AI assistant failed to acknowledge the event, they are used as a fallback mechanism for human user to intervene.
 
