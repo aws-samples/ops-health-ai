@@ -28,6 +28,7 @@ export interface OpsHealthAgentProps extends cdk.StackProps {
   appEventDomainPrefix: string
   slackMeFunction: lambda.IFunction
   guardrailArn: string
+  mockupSlackChannelId: string
 }
 
 export class OpsHealthAgentStack extends cdk.Stack {
@@ -271,6 +272,9 @@ export class OpsHealthAgentStack extends cdk.Stack {
         SECHUB_KNOWLEDGE_BASE_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
         AWS_KB_ID: askAwsKnowledgeBase.knowledgeBaseId,
         TICKET_TABLE: props.ticketManagementTableName,
+        EVENT_SOURCE_NAME: `${props.appEventDomainPrefix}.ops-orchestration`,
+        EVENT_BUS_NAME: props.aiOpsEventBus.eventBusName,
+        MOCKUP_SLACK_CHANNEL_ID: props.mockupSlackChannelId
       },
     });
     // ============================
@@ -292,6 +296,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
         "dynamodb:*",
         "states:SendTaskFailure",
         "states:SendTaskSuccess",
+        "events:PutEvents",
         "s3:ListBucket",
         "s3:GetObject",
         "s3:GetBucketLocation",
@@ -482,7 +487,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       eventBus: props.aiOpsEventBus,
       eventPattern: {
         source: [`${props.appEventDomainPrefix}.ops-orchestration`],
-        detailType: [`Chat.SlackMessageReceived`, `Chat.SlackMessageToAgentReceived`]
+        detailType: [`Chat.SlackMessageReceived`, `Chat.SendSlackRequested`]
       },
       ruleName: 'AiOpsChatRule',
       description: 'Command event processing integration with external services.',

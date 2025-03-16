@@ -51,8 +51,9 @@
 2. Install your app into your workspace, take note of the “Bot User OAuth Token” value to be used in next steps.
 3. Take note of the “Verification Token” value under your app’s Basic Information, you will need it in next steps.
 4. In your Slack desktop app, go to your workspace and add the newly created app.
-5. Create a Slack channel and add the newly created app as an integrated app to the channel.
-6. Find and take note of the channel id by right-clicking on the channel name and selecting ‘Additional options’ to access the ‘More’ menu. Within the ‘More’ menu, click on ‘Open details’ to reveal the Channel details.
+5. Create a Slack channel and add the newly created app as an integrated app to the channel, this channel will be used to watch how events arrive and get processed.
+6. Create another Slack channel and add the newly created app as an integrated app to the channel, this channel will be used to test out how ticket notifications land in different team channels.
+7. Find and take note of the channel id of above channels by right-clicking on the channel name and selecting ‘Additional options’ to access the ‘More’ menu. Within the ‘More’ menu, click on ‘Open details’ to reveal the Channel details.
 
 ### Prepare your deployment environment for the worker account
 This step is required only if you chose a worker account that is different from the administration account. Make sure you are not running the command under an existing AWS CDK project root directory.
@@ -100,7 +101,8 @@ CDK_PROCESSING_ACCOUNT=<replace with your 12 digits worker AWS account id. This 
 EVENT_REGIONS=us-east-1,<region 1 of where your infrastructures are hosted>,<region 2 of where your infrastructures are hosted>
 CDK_PROCESSING_REGION=<replace with the region where you want the worker services to be, e.g. us-east-1>
 EVENT_HUB_ARN=arn:aws:events:<replace with the worker service region>:<replace with the worker service account id>:event-bus/AiOpsStatefulStackAiOpsEventBus
-SLACK_CHANNEL_ID=<your Slack channel ID here>
+SLACK_CHANNEL_ID=<your admin Slack channel ID here>
+MOCKUP_SLACK_CHANNEL_ID=<your team mockup Slack channel ID here>
 SLACK_APP_VERIFICATION_TOKEN=<replace with your Slack app verification token>
 SLACK_ACCESS_TOKEN=<replace with your Slack Bot User OAuth Token value>
 ```

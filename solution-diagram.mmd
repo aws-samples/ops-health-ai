@@ -1,0 +1,80 @@
+%% @/solution-diagram.mmd draw a mermaid architecture diagram based on the following solution description:
+%% # Operation event handling flow
+%% 1. An operational event happen
+%% 2. the event gets delivered to OpsAgent
+%% 3. OpsAgent analyzes the event content by connecting to the history event knowledge base and ticket system
+%% 4. OpsAgent takes actions such as create, update ticket based on the analyses and it consults AskAws knowledge base for remediation guidelines
+%% 5. OpsAgent send report of actions and results via Slack
+
+%% # User chat handling flow
+%% 1. User sends query to OpsAgent via Slack
+%% 2. OpsAgent generated response to user query by connecting to history event knowledge base, AskAws knowledge base, and ticket tools
+%% 3. OpsAgent sends synthesized response back to user via Slack
+
+
+erDiagram
+    OperationalEvents ||--o{ OpsAgent : "delivered to"
+    OpsAgent ||--o{ HistoryEventKB : "analyzes using"
+    OpsAgent ||--o{ TicketSystem : "interacts with"
+    OpsAgent ||--o{ AskAwsKB : "consults for remediation"
+    OpsAgent ||--o{ Slack : "sends reports via"
+    User ||--o{ Slack : "sends query via"
+    Slack ||--o{ OpsAgent : "delivers user query to"
+    OpsAgent ||--o{ HistoryEventKB : "retrieves data from"
+    OpsAgent ||--o{ AskAwsKB : "retrieves guidelines from"
+    OpsAgent ||--o{ TicketSystem : "retrieves ticket info from"
+    OpsAgent ||--o{ Slack : "sends response via"
+    Slack ||--o{ User : "delivers response to"
+
+    OperationalEvents {
+        service_deprecation operational_issues
+        account_change maintenance
+        security_findings cost_anomalies
+        on-prem_events user_reported_events
+    }
+
+    OpsAgent {
+        string agentId
+        string status
+        datetime lastActive
+    }
+
+    HistoryEventKB {
+        string eventId
+        string eventType
+        datetime timestamp
+        json eventData
+        string resolution
+    }
+
+    TicketSystem {
+        string ticketId
+        string status
+        string priority
+        string description
+        datetime createdAt
+        datetime updatedAt
+        string assignee
+    }
+
+    AskAwsKB {
+        string guidelineId
+        string serviceArea
+        string problemType
+        string remediation
+        string reference
+    }
+
+    Slack {
+        string channelId
+        string messageId
+        string sender
+        datetime timestamp
+        string messageContent
+    }
+
+    User {
+        string userId
+        string userName
+        string role
+    }

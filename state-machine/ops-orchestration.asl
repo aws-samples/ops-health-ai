@@ -1,5 +1,5 @@
 {
-  "Comment": "A description of my state machine",
+  "Comment": "Main orchestration flow for operational event notification and action triage",
   "StartAt": "CheckEventType",
   "States": {
     "CheckEventType": {

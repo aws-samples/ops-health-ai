@@ -1,5 +1,5 @@
 {
-  "Comment": "AWS Health event integration with other toolings",
+  "Comment": "AI agent plugin that integrates with other flows by event-driven",
   "StartAt": "CheckEventType",
   "States": {
     "CheckEventType": {
@@ -124,7 +124,6 @@
       "Parameters": {
         "FunctionName": "${SlackMeFunctionNamePlaceholder}",
         "Payload": {
-          "channel": "${SlackChannelIdPlaceholder}",
           "text.$": "States.Format('OpsAgent reasoning: {}', $.InvokeOpsAgent.Payload.Output.Text)",
           "threadTs.$": "$.GetEventItem.Item.SlackThread"
         }

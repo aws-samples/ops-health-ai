@@ -1,10 +1,23 @@
 {
-  "Comment": "Knowledge base integration logics",
+  "Comment": "logic flow to handle Slack user initiated chats",
   "StartAt": "ValidateInput",
   "States": {
     "ValidateInput": {
       "Type": "Choice",
       "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.detail-type",
+              "StringEquals": "Chat.SendSlackRequested"
+            },
+            {
+              "Variable": "$.detail.event.channel",
+              "IsPresent": true
+            }
+          ],
+          "Next": "TransformMessageRequest"
+        },
         {
           "And": [
             {
@@ -32,7 +45,17 @@
           "Next": "PassChatMessageTimeStamp"
         }
       ],
-      "Default": "RetrieveAndGenerate"
+      "Default": "Finished"
+    },
+    "TransformMessageRequest": {
+      "Type": "Pass",
+      "Parameters": {
+        "Output": {
+          "Text.$": "$.detail.event.text"
+        }
+      },
+      "Next": "SlackBack",
+      "ResultPath": "$.BedrockAgentResponse"
     },
     "PassChatMessageTimeStamp": {
       "Type": "Pass",
@@ -206,29 +229,6 @@
       "Next": "ValidateResponse",
       "ResultPath": "$.PutUserSession"
     },
-    "RetrieveAndGenerate": {
-      "Type": "Task",
-      "Next": "ValidateResponse",
-      "Parameters": {
-        "Input": {
-          "Text.$": "$.detail.event.text"
-        },
-        "RetrieveAndGenerateConfiguration": {
-          "Type": "KNOWLEDGE_BASE",
-          "KnowledgeBaseConfiguration": {
-            "KnowledgeBaseId": "${OpsHealthKnowledgeBaseIdPlaceHolder}",
-            "ModelArn": "${LlmModelArnPlaceholder}",
-            "RetrievalConfiguration": {
-              "VectorSearchConfiguration": {
-                "NumberOfResults": 100
-              }
-            }
-          }
-        }
-      },
-      "Resource": "arn:aws:states:::aws-sdk:bedrockagentruntime:retrieveAndGenerate",
-      "ResultPath": "$.BedrockAgentResponse"
-    },
     "ValidateResponse": {
       "Type": "Choice",
       "Choices": [
@@ -247,7 +247,7 @@
       "Parameters": {
         "FunctionName": "${SlackMeFunctionNamePlaceholder}",
         "Payload": {
-          "channel": "${SlackChannelIdPlaceholder}",
+          "channel.$": "$.detail.event.channel",
           "text": "Sorry, I don't have the knowledge needed to assist with this request. Is the knowledge base empty?",
           "threadTs.$": "$.detail.event.ts"
         }
@@ -275,7 +275,7 @@
       "Parameters": {
         "FunctionName": "${SlackMeFunctionNamePlaceholder}",
         "Payload": {
-          "channel": "${SlackChannelIdPlaceholder}",
+          "channel.$": "$.detail.event.channel",
           "text.$": "$.BedrockAgentResponse.Output.Text",
           "threadTs.$": "$.detail.event.ts"
         }

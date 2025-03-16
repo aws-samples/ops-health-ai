@@ -1,5 +1,5 @@
 {
-  "Comment": "A description of my state machine",
+  "Comment": "Ops admin notification handler",
   "StartAt": "CheckEventType",
   "States": {
     "CheckEventType": {

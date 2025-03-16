@@ -69,7 +69,8 @@ for (const region of eventRegions) {
       region: region,
     },
     aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
-    sourceEventDomains: sourceEventDomains
+    sourceEventDomains: sourceEventDomains,
+    secHubBucketName: `aws-sec-findings-${process.env.CDK_PROCESSING_ACCOUNT as string}-${process.env.CDK_PROCESSING_REGION as string}`,
   });
 }
 /********************************************************************** */
@@ -156,6 +157,7 @@ const opsHealthAgentStack = new OpsHealthAgentStack(app, 'AiOpsHealthAgentStack'
   sourceEventDomains: sourceEventDomains,
   appEventDomainPrefix: appEventDomainPrefix,
   slackMeFunction: opsOrchestrationStack.slackMeFunction,
-  guardrailArn: statefulStack.bedrockGuardrail.attrGuardrailArn
+  guardrailArn: statefulStack.bedrockGuardrail.attrGuardrailArn,
+  mockupSlackChannelId: process.env.MOCKUP_SLACK_CHANNEL_ID as string
 });
 

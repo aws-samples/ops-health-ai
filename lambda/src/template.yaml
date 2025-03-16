@@ -25,6 +25,7 @@ Resources:
           SECHUB_KNOWLEDGE_BASE_ID: ""
           AWS_KB_ID: ""
           TICKET_TABLE: ""
+          EVENT_SOURCE_NAME: ""
 
   SlackMeFunction:
     Type: AWS::Serverless::Function

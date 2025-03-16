@@ -9,6 +9,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 export interface OrgAdminProps extends cdk.StackProps {
   aiOpsEventBusArn: string
   sourceEventDomains: string[]
+  secHubBucketName: string
 }
 
 export class OrgAdminOrgStack extends cdk.Stack {
@@ -28,57 +29,57 @@ export class OrgAdminOrgStack extends cdk.Stack {
       ),)]
     });
 
-    // ---------- create the following for securityhub reporting --------------
-    if (cdk.Stack.of(this).region === "ap-southeast-2") {
-      const secHubReportFunction = new lambda.Function(this, 'SecHubReportFunction', {
-        runtime: lambda.Runtime.PYTHON_3_11,
-        code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/SecHubReportFunction'),
-        handler: 'app.lambda_handler',
-        timeout: cdk.Duration.seconds(300),
-        memorySize: 128,
-        architecture: lambda.Architecture.ARM_64,
-        reservedConcurrentExecutions: 1,
-        environment: {
-          S3_NAME: 'aws-sec-findings-543576786396-us-east-1'
-        },
-      });
+    // ---------- UNCOMMENT THE BELOW to create scheduled securityhub reporting that then can be sync'd to security findings knowledge base --------------
+    // if (cdk.Stack.of(this).region === "ap-southeast-2") { // note the region is the region where you enabled Security Hub
+    //   const secHubReportFunction = new lambda.Function(this, 'SecHubReportFunction', {
+    //     runtime: lambda.Runtime.PYTHON_3_11,
+    //     code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/SecHubReportFunction'),
+    //     handler: 'app.lambda_handler',
+    //     timeout: cdk.Duration.seconds(300),
+    //     memorySize: 128,
+    //     architecture: lambda.Architecture.ARM_64,
+    //     reservedConcurrentExecutions: 1,
+    //     environment: {
+    //       S3_NAME: props.secHubBucketName
+    //     },
+    //   });
 
-      const secHubReportLogGroup = new logs.LogGroup(this, 'SecHubReportLogGroup', {
-        logGroupName: `/aws/lambda/${secHubReportFunction.functionName}`,
-        retention: logs.RetentionDays.ONE_WEEK,
-        removalPolicy: cdk.RemovalPolicy.DESTROY,
-      });
+    //   const secHubReportLogGroup = new logs.LogGroup(this, 'SecHubReportLogGroup', {
+    //     logGroupName: `/aws/lambda/${secHubReportFunction.functionName}`,
+    //     retention: logs.RetentionDays.ONE_WEEK,
+    //     removalPolicy: cdk.RemovalPolicy.DESTROY,
+    //   });
 
-      const secHubReportPolicy = new iam.PolicyStatement({
-        actions: [
-          "s3:ListBucket",
-          "s3:GetObject",
-          "s3:GetBucketLocation",
-          "s3:ListMultipartUploadParts",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:DeleteObjects",
-          "securityhub:GetFindings"
-        ],
-        resources: ['arn:aws:s3:::*','arn:aws:securityhub:*'],
-        effect: cdk.aws_iam.Effect.ALLOW
-      });
+    //   const secHubReportPolicy = new iam.PolicyStatement({
+    //     actions: [
+    //       "s3:ListBucket",
+    //       "s3:GetObject",
+    //       "s3:GetBucketLocation",
+    //       "s3:ListMultipartUploadParts",
+    //       "s3:PutObject",
+    //       "s3:DeleteObject",
+    //       "s3:DeleteObjects",
+    //       "securityhub:GetFindings"
+    //     ],
+    //     resources: ['arn:aws:s3:::*','arn:aws:securityhub:*'],
+    //     effect: cdk.aws_iam.Effect.ALLOW
+    //   });
 
-      secHubReportFunction.role?.attachInlinePolicy(
-        new iam.Policy(this, 'securityhub-function-policy', {
-          statements: [secHubReportPolicy],
-        }),
-      );
+    //   secHubReportFunction.role?.attachInlinePolicy(
+    //     new iam.Policy(this, 'securityhub-function-policy', {
+    //       statements: [secHubReportPolicy],
+    //     }),
+    //   );
 
-      new events.Rule(this, `SecurityhubReportRule`, {
-        schedule: events.Schedule.cron({
-          minute: "0",
-          hour: "15",
-        }),
-        targets: [new evtTargets.LambdaFunction(secHubReportFunction, {
-          retryAttempts: 2, // Max number of retries for Lambda invocation
-        })]
-      });
-    }
+    //   new events.Rule(this, `SecurityhubReportRule`, {
+    //     schedule: events.Schedule.cron({
+    //       minute: "0",
+    //       hour: "15",
+    //     }),
+    //     targets: [new evtTargets.LambdaFunction(secHubReportFunction, {
+    //       retryAttempts: 2, // Max number of retries for Lambda invocation
+    //     })]
+    //   });
+    // }
   }
 }

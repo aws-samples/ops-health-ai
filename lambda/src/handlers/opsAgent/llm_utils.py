@@ -11,10 +11,13 @@ from boto3 import client
 from botocore.config import Config
 
 # Setting up tool and utility environment
+mockup_slack_channel_id = os.environ.get('MOCKUP_SLACK_CHANNEL_ID') # the Slack channel that each team own to receive notification when a ticket is assigned to them, a mockup channel is used here for demo purpose.
 region = os.environ['AWS_REGION']
 ops_knowledge_base_id = os.environ['OPS_KNOWLEDGE_BASE_ID']
 sechub_knowledge_base_id = os.environ['SECHUB_KNOWLEDGE_BASE_ID']
 ticket_table = os.environ.get('TICKET_TABLE')
+message_event_bus_name = os.environ.get('EVENT_BUS_NAME')
+message_event_source_name = os.environ.get('EVENT_SOURCE_NAME')
 
 CLAUDE_35_SONNET_MODEL_ID = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
 CLAUDE_37_SONNET_MODEL_ID = 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
@@ -53,9 +56,14 @@ def create_clients(region):
         region_name=region
     )
 
-    return bedrock, bedrock_runtime, bedrock_agent_runtime, dynamodb, sfn
+    events = boto3.client(
+        service_name='events',
+        region_name=region
+    )
 
-bedrock, bedrock_runtime, bedrock_agent_runtime, dynamodb, sfn = create_clients(region)
+    return bedrock, bedrock_runtime, bedrock_agent_runtime, dynamodb, sfn, events
+
+bedrock, bedrock_runtime, bedrock_agent_runtime, dynamodb, sfn, events = create_clients(region)
 
 # ========== Define tools for agents ====================
 def search_ops_events(query):
@@ -287,6 +295,7 @@ def acknowledge_event(callback_token, action_taken, reason_for_action=None):
 def create_ticket(event_pk, ticket_title, ticket_detail='', recommended_action='', event_last_updated_time='', severity='', assignee='', progress='' ):
     """
     Create a ticket in DynamoDB based on event data.
+    Also sends an event to EventBridge event bus.
     """
     try:
         # Generate a unique ticket ID
@@ -311,9 +320,36 @@ def create_ticket(event_pk, ticket_title, ticket_detail='', recommended_action='
 
         # Execute PutItem operation
         response = dynamodb.put_item(**create_ticket_params)
-
-        # Return JSON string of the response, similar to the TypeScript implementation
         body = json.dumps(response)
+
+        # Send event to EventBridge to send Slack message to any team's channel
+        if mockup_slack_channel_id:
+            try:
+                message_body = f"You have just been assigned or copied for a new Ticket.\n TicketID: {ticket_id}\n Ticket Title:: {ticket_title}\n Assigned to: {assignee}\n Ticket Details: {ticket_detail}\n Severity: {severity}\n Recommendations: {recommended_action}"
+                event_response = events.put_events(
+                    Entries=[
+                        {
+                            'Source': message_event_source_name, # The event source the ChatIntegration service listens to
+                            'DetailType': 'Chat.SendSlackRequested', # # The event type the ChatIntegration service can handle
+                            'Detail': json.dumps({
+                                'event': {
+                                    'channel': mockup_slack_channel_id,
+                                    'text': message_body,
+                                    'ts': ''
+                                }
+                            }),
+                            'EventBusName': message_event_bus_name
+                        }
+                    ]
+                )
+            except Exception as event_error:
+                print(f"Error sending Slack message event to EventBridge: {str(event_error)}, Return create_ticket result anyway.")
+                return {
+                'create_ticket': {
+                    'ticketId': ticket_id,
+                    'body': body
+                }
+            }
 
         return {
             'create_ticket': {
