@@ -56,6 +56,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /***************** Rest API and API integration to call Lambda functions ******* */
     // uncomment the below to disable logging when troubleshooting needed
     const logGroup = new logs.LogGroup(this, "ApiGatewayAccessLogs", {
+      logGroupName: `/aws/vendedlogs/apigateway/AiOpsChatSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -202,6 +203,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
 
     /********* Main event processing state machine *************************/
     const opsOrchestrationSfnLogGroup = new logs.LogGroup(this, 'OpsOrchestrationSfnLogs', {
+      logGroupName: `/aws/vendedlogs/states/OpsOrchestrationSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -259,6 +261,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
 
     /*** State machine for notification service *****/
     const notificationSfnLogGroup = new logs.LogGroup(this, 'NotificationSfnLogs', {
+      logGroupName: `/aws/vendedlogs/states/NotificationSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });

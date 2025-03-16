@@ -363,6 +363,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
 
     /*** State machine for AI agent integration microservices *****/
     const aiIntegrationSfnLogGroup = new logs.LogGroup(this, 'AiIntegrationSfnLogs', {
+      logGroupName: `/aws/vendedlogs/states/AiIntegrationSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -425,6 +426,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
 
     /*** State machine for slack command event integration microservices *****/
     const aiOpsChatSfnLogGroup = new logs.LogGroup(this, 'AiOpsChatSfnLogs', {
+      logGroupName: `/aws/vendedlogs/states/AiOpsChatSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });

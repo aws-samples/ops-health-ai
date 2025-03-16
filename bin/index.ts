@@ -69,7 +69,8 @@ for (const region of eventRegions) {
       region: region,
     },
     aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
-    sourceEventDomains: sourceEventDomains
+    sourceEventDomains: sourceEventDomains,
+    secHubBucketName: `aws-sec-findings-${statefulStack.account}-${statefulStack.region}`
   });
 }
 /********************************************************************** */
