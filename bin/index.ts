@@ -70,7 +70,7 @@ for (const region of eventRegions) {
     },
     aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
     sourceEventDomains: sourceEventDomains,
-    secHubBucketName: `aws-sec-findings-${process.env.CDK_PROCESSING_ACCOUNT as string}-${process.env.CDK_PROCESSING_REGION as string}`,
+    secHubBucketName: `aws-sec-findings-${statefulStack.account}-${statefulStack.region}`
   });
 }
 /********************************************************************** */

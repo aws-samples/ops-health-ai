@@ -18,6 +18,8 @@ sechub_knowledge_base_id = os.environ['SECHUB_KNOWLEDGE_BASE_ID']
 ticket_table = os.environ.get('TICKET_TABLE')
 message_event_bus_name = os.environ.get('EVENT_BUS_NAME')
 message_event_source_name = os.environ.get('EVENT_SOURCE_NAME')
+bedrock_guardrail_id = os.environ.get('BEDROCK_GUARDRAIL_ID')
+bedrock_guardrail_ver = os.environ.get('BEDROCK_GUARDRAIL_VER')
 
 CLAUDE_35_SONNET_MODEL_ID = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
 CLAUDE_37_SONNET_MODEL_ID = 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
@@ -288,7 +290,8 @@ def acknowledge_event(callback_token, action_taken, reason_for_action=None):
         print(f"Error handling task response: {str(e)}")
         return {
             "acknowledge_event": {
-                'ExecutionError': json.dumps({'error': str(e)})
+                'ExecutionError': "Acknowledgement failed, please verify if the callback token you used is exactly correct and try again."
+                # 'ExecutionError': json.dumps({'error': str(e)})
             }
         }
 
@@ -677,7 +680,13 @@ def invoke_claude_with_tools(prompt, system_prompt, tools, max_tokens=4096):
         },
         "toolConfig": {
             "tools": tools
-        }
+        },
+        # uncomment the below to apply Bedrock Guardrails
+        # "guardrailConfig": {
+        #     "guardrailIdentifier": bedrock_guardrail_id,
+        #     "guardrailVersion": bedrock_guardrail_ver,
+        #     "trace": "enabled"
+        # }
     }
 
     # Invoke the model
@@ -746,12 +755,30 @@ def invoke_claude_extended_thinking_with_tools(prompt, system_prompt, tools, rea
         },
         "toolConfig": {
             "tools": tools
-        }
+        },
+        # uncomment the below to apply Bedrock Guardrails
+        # "guardrailConfig": {
+        #     "guardrailIdentifier": bedrock_guardrail_id,
+        #     "guardrailVersion": bedrock_guardrail_ver,
+        #     "trace": "enabled"
+        # }
     }
 
     # Invoke the model
     start_time = time.time()
-    response = bedrock_runtime.converse(**request_params)
+    max_retries = 5
+    retry_count = 0
+    while True:
+        try:
+            response = bedrock_runtime.converse(**request_params) # to handle ThrottlingException
+            break  # Success, exit the loop
+        except ClientError as error:
+            retry_count += 1
+            if retry_count > max_retries:
+                raise  # Re-raise if max retries exceeded
+            print(f"{error.response['Error']['Code'] } encountered. Retrying in 30 seconds... (Attempt {retry_count}/{max_retries})")
+            time.sleep(30)
+
     elapsed_time = time.time() - start_time
 
     # Add elapsed time to response for reference
@@ -866,7 +893,8 @@ def display_claude_tool_response(response):
             print(f"#### Tool Call {i}: `{tool_name}`")
             print(f"**Tool Use ID**: `{tool_id}`")
             print("**JSON Input**:")
-            print(f"```json\n{formatted_input}\n```")
+            # print(f"```json\n{formatted_input}\n```")
+            print(formatted_input)
 
             # Process the tool call
             tool_output = handle_tool_call(tool_name, tool_input)

@@ -26,6 +26,8 @@ Resources:
           AWS_KB_ID: ""
           TICKET_TABLE: ""
           EVENT_SOURCE_NAME: ""
+          BEDROCK_GUARDRAIL_ID: ""
+          BEDROCK_GUARDRAIL_VER: ""
 
   SlackMeFunction:
     Type: AWS::Serverless::Function
@@ -38,6 +40,7 @@ Resources:
       Environment:
         Variables:
           SLACK_ACCESS_TOKEN: 'string'
+          SLACK_CHANNEL_ID: 'string'
 
   SecHubReportFunction:
     Type: AWS::Serverless::Function
@@ -91,33 +94,6 @@ Resources:
           TA_FINDINGS_s3: "string"
           SEC_FINDINGs_S3: "string"
 
-  OpsHealthActionGroupFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      PackageType: Zip
-      CodeUri: handlers/opsHealthActionGroup/
-      Handler: app.lambdaHandler
-      Runtime: nodejs18.x
-      Timeout: 10
-      MemorySize: 128
-      Environment:
-        Variables:
-          EVENT_TABLE: "string"
-          TICKET_TABLE: "string"
-          HEALTH_KB_ID: "string"
-          SEC_KB_ID: "string"
-          AWS_KB_ID: "string"
-          OPS_LLM_ARN: "string"
-          AWS_LLM_ARN: "string"
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: "es2020"
-        Sourcemap: false
-        EntryPoints:
-        - app.ts
-
   HandleSlackCommFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -164,28 +140,6 @@ Resources:
         EntryPoints:
         - app.ts
 
-  InvokeAgentFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      PackageType: Zip
-      CodeUri: handlers/invokeAgent/
-      Handler: app.lambdaHandler
-      Runtime: nodejs18.x
-      Timeout: 10
-      MemorySize: 128
-      Environment:
-        Variables:
-          AGENT_ID: "string"
-          AGENT_ALIAS_ID: "string"
-          PAYLOAD_BUCKET: "string"
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: "es2020"
-        Sourcemap: false
-        EntryPoints:
-        - app.ts
 
 
 

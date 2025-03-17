@@ -56,7 +56,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /***************** Rest API and API integration to call Lambda functions ******* */
     // uncomment the below to disable logging when troubleshooting needed
     const logGroup = new logs.LogGroup(this, "ApiGatewayAccessLogs", {
-      logGroupName: `/aws/vendedlogs/apigateway/AiOpsChatSfnLogs`,
+      logGroupName: `/aws/vendedlogs/apigateway/AiOpsRestEndpointsLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -162,6 +162,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
       tracing: lambda.Tracing.DISABLED,
       environment: {
         SLACK_ACCESS_TOKEN: props.slackAccessToken,
+        SLACK_CHANNEL_ID: props.slackChannelId
       },
     });
 

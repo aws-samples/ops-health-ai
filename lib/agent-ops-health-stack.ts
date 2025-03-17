@@ -36,7 +36,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: OpsHealthAgentProps) {
     super(scope, id, props);
 
-    /******************* DynamoDB Table to manage user chat sessions *****************/
+    /******************* DynamoDB Table to manage user chat sessions with the agent *****************/
     const chatUserSessionsTable = new dynamodb.Table(this, 'ChatUserSessionsTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: {
@@ -114,57 +114,6 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const importedGuardrail = bedrock.Guardrail.fromGuardrailAttributes(this, 'TestGuardrail', {
       guardrailArn: props.guardrailArn
     });
-    const opsHealthAgent = new bedrock.Agent(this, 'OpsHealthAgent', {
-      name: 'OpsAgent',
-      description: 'The agent for consultation on operational events, issues, and/or security findings',
-      foundationModel: bedrock.BedrockFoundationModel.ANTHROPIC_CLAUDE_3_5_HAIKU_V1_0,
-      instruction:
-        'You are MyCompany\'s cloud operations assistant that provides details or advice related to operational events, issues, and security findings.',
-      idleSessionTTL: cdk.Duration.minutes(15),
-      // knowledgeBases: [opsHealthKnowledgeBase, opsSecHubKnowledgeBase],
-      shouldPrepareAgent: true,
-      guardrail: importedGuardrail,
-      existingRole: new iam.Role(this, 'OpsHealthAgentRole', {
-        assumedBy: new iam.ServicePrincipal('bedrock.amazonaws.com'),
-        managedPolicies: [
-          iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonBedrockFullAccess')
-        ],
-      }),
-      promptOverrideConfiguration: bedrock.PromptOverrideConfiguration.fromSteps(
-        [
-          {
-            stepType: bedrock.AgentStepType.PRE_PROCESSING,
-            stepEnabled: true,
-            customPromptTemplate: fs.readFileSync(path.join(__dirname, '../prompt-templates/ops-agent/preprocessing.xml')).toString(),
-            inferenceConfig: {
-              temperature: 0,
-              topP: 1,
-              topK: 250,
-              stopSequences: ['\n\nHuman:'],
-              maximumLength: 2048,
-            },
-          },
-          {
-            stepType: bedrock.AgentStepType.ORCHESTRATION,
-            stepEnabled: true,
-            customPromptTemplate: fs.readFileSync(path.join(__dirname, '../prompt-templates/ops-agent/orchestration.xml')).toString(),
-            inferenceConfig: {
-              temperature: 0,
-              topP: 1,
-              topK: 250,
-              stopSequences: ['</invoke>', '</answer>', '</error>'],
-              maximumLength: 2048,
-            },
-          },
-        ]
-      )
-    });
-    const opsHealthAgentAlias = new bedrock.AgentAlias(this, 'OpsAgentAlias', {
-      // aliasName: 'OpsAgent', // optional
-      agent: opsHealthAgent,
-      // agentVersion: '1', // optional
-      description: 'OpsAgent prod alias'
-    });
 
     const healthBufferKbSyncSqs = new sqs.Queue(this, 'BufferHealthKbSyncSqs', {
       visibilityTimeout: cdk.Duration.seconds(300), //6 times the function timeout, plus the value of MaximumBatchingWindowInSeconds
@@ -241,23 +190,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       targets: [new evtTargets.SqsQueue(healthBufferKbSyncSqs), new evtTargets.SqsQueue(sechubBufferKbSyncSqs)]
     });
 
-    /*** Bedrock agent and agent action groups **************/
-    // const invokeAgentFunction = new lambda.Function(this, 'InvokeAgentFunction', {
-    //   runtime: lambda.Runtime.NODEJS_18_X,
-    //   code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/InvokeAgentFunction'),
-    //   handler: 'app.lambdaHandler',
-    //   timeout: cdk.Duration.seconds(600),
-    //   memorySize: 128,
-    //   architecture: lambda.Architecture.ARM_64,
-    //   reservedConcurrentExecutions: 10,
-    //   environment: {
-    //     AGENT_ID: opsHealthAgent.agentId,
-    //     AGENT_ALIAS_ID: opsHealthAgentAlias.aliasId as string,
-    //     PAYLOAD_BUCKET: props.transientPayloadsBucketName
-    //   },
-    // });
-
-    // ===== experimental code =====
+    // ===== Full agent functionalities =====
     const invokeAgentFunction = new lambda.Function(this, 'OpsAgentFunction', {
       runtime: lambda.Runtime.PYTHON_3_11,
       code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/OpsAgentFunction'),
@@ -268,13 +201,15 @@ export class OpsHealthAgentStack extends cdk.Stack {
       reservedConcurrentExecutions: 1, // Allowed concurrency set to 1 to accommodate LLM API throttling retries, make sure your AWS account and region has the appropriate API quota for used LLMs if faster processing speed needed.
       environment: {
         MEM_BUCKET: props.transientPayloadsBucketName,
-        OPS_KNOWLEDGE_BASE_ID: opsHealthAgent.agentId,
+        OPS_KNOWLEDGE_BASE_ID: opsHealthKnowledgeBase.knowledgeBaseId,
         SECHUB_KNOWLEDGE_BASE_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
         AWS_KB_ID: askAwsKnowledgeBase.knowledgeBaseId,
         TICKET_TABLE: props.ticketManagementTableName,
         EVENT_SOURCE_NAME: `${props.appEventDomainPrefix}.ops-orchestration`,
         EVENT_BUS_NAME: props.aiOpsEventBus.eventBusName,
-        MOCKUP_SLACK_CHANNEL_ID: props.mockupSlackChannelId
+        MOCKUP_SLACK_CHANNEL_ID: props.mockupSlackChannelId,
+        BEDROCK_GUARDRAIL_ID: importedGuardrail.guardrailId,
+        BEDROCK_GUARDRAIL_VER: importedGuardrail.guardrailVersion
       },
     });
     // ============================
@@ -313,62 +248,6 @@ export class OpsHealthAgentStack extends cdk.Stack {
       }),
     );
 
-    /*** Operations assistant action group executor function **************/
-    const opsHealthActionGroupFunction = new lambda.Function(this, 'OpsHealthActionGroupFunction', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/OpsHealthActionGroupFunction'),
-      handler: 'app.lambdaHandler',
-      timeout: cdk.Duration.seconds(120),
-      memorySize: 128,
-      architecture: lambda.Architecture.ARM_64,
-      reservedConcurrentExecutions: 10,
-      environment: {
-        EVENT_TABLE: props.eventManagementTableName,
-        TICKET_TABLE: props.ticketManagementTableName,
-        HEALTH_KB_ID: opsHealthKnowledgeBase.knowledgeBaseId,
-        SEC_KB_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
-        AWS_KB_ID: askAwsKnowledgeBase.knowledgeBaseId,
-        OPS_LLM_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
-        // AWS_LLM_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/amazon.titan-text-premier-v1:0`,
-        AWS_LLM_ARN: `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
-      },
-    });
-
-    const opsHealthActionGroupLogGroup = new logs.LogGroup(this, 'OpsHealthActionGroupLogGroup', {
-      logGroupName: `/aws/lambda/${opsHealthActionGroupFunction.functionName}`,
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    const opsHealthActionGroupPolicy = new iam.PolicyStatement({
-      actions: [
-        "bedrock:InvokeAgent",
-        "bedrock:RetrieveAndGenerate",
-        "bedrock:Retrieve",
-        "bedrock:InvokeModel",
-        "kendra:Retrieve",
-        "dynamodb:*",
-        "states:SendTaskFailure",
-        "states:SendTaskSuccess",
-      ],
-      resources: [opsHealthAgentAlias.aliasArn as string, opsHealthKnowledgeBase.knowledgeBaseArn, opsSecHubKnowledgeBase.knowledgeBaseArn, askAwsKnowledgeBase.knowledgeBaseArn, `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/*`, 'arn:aws:dynamodb:*', 'arn:aws:states:*'],
-      effect: cdk.aws_iam.Effect.ALLOW
-    });
-
-    opsHealthActionGroupFunction.role?.attachInlinePolicy(
-      new iam.Policy(this, 'action-group-ops-health-policy', {
-        statements: [opsHealthActionGroupPolicy],
-      }),
-    );
-
-    const osAgentActionGroup = new bedrock.AgentActionGroup({
-      name: 'OpsHealthAgentActionGroup', // connot have '-' or regex will fail matching
-      description: 'The action group for cloud operations assistant agent',
-      apiSchema: bedrock.ApiSchema.fromLocalAsset(path.join(__dirname, './schema/api-ops.json')),
-      executor: bedrock.ActionGroupExecutor.fromlambdaFunction(opsHealthActionGroupFunction),
-    });
-    opsHealthAgent.addActionGroup(osAgentActionGroup);
-
     /*** Role to be used by event processing and integration state machines ************/
     const eventAiProcessingRole = new iam.Role(this, 'EventAiProcessingRole', {
       roleName: 'EventAiProcessingRole',
@@ -404,8 +283,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       definitionSubstitutions: {
         "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
-        "SlackMeFunctionNamePlaceholder": props.slackMeFunction.functionName,
-        "SlackChannelIdPlaceholder": props.slackChannelId
+        "SlackMeFunctionNamePlaceholder": props.slackMeFunction.functionName
       },
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,

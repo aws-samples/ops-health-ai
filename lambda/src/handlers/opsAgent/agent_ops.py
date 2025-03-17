@@ -89,7 +89,9 @@ class AgentOps:
         {query}
 
         Think carefully about what information you need to gather and which tools would be most helpful.
-        Develop an optimized research plan by using multiple tools at the same step whenever possible, e.g. acknowledge_event tool can be used at the same time of using other tools. Then execute the plan step by step using the available tools.
+        Develop an optimized research plan by 1. using multiple tools at the same step whenever possible, e.g. acknowledge_event tool can be used at the same time of using other tools. 2. planning dependent steps as early as possible, e.g. search_tickets_by_event_key can happen earlier than create_ticket or update_ticket. 3. no need to use ask_aws tool if no ticket needs to be created.
+
+        Then execute the plan step by step using the available tools.
 
         Provide a comprehensive response that synthesizes the information you gather.
         Include in your response the specific sources used in your research. Use the following format for each of the sources used: [Source #: Source Title - Source Link].
@@ -109,7 +111,9 @@ class AgentOps:
             Look carefully at history conversation and extract any information that is helpful for the current query.
             Summarize the extracted information as part of your response.
             Think carefully about what additional information you need to gather and which tools would be most helpful.
-            Develop an optimized research plan by using multiple tools at the same step whenever possible, e.g. acknowledge_event tool can be used at the same time of using other tools. Then execute the plan step by step using the available tools.
+            Develop an optimized research plan by 1. using multiple tools at the same step whenever possible, e.g. acknowledge_event tool can be used at the same time of using other tools. 2. planning dependent steps as early as possible, e.g. search_tickets_by_event_key can happen earlier than create_ticket or update_ticket. 3. no need to use ask_aws tool if no ticket needs to be created.
+
+            Then execute the plan step by step using the available tools.
 
             Provide a comprehensive response that synthesizes the information you gather.
 

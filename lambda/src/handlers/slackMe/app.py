@@ -2,12 +2,13 @@ import os, json
 from slack_sdk import WebClient
 
 slack_access_token = os.environ["SLACK_ACCESS_TOKEN"]
+admin_slack_channel_id = os.environ['SLACK_CHANNEL_ID']
 slack_client = WebClient(token=slack_access_token)
 
 def lambda_handler(event, context):
     context.log("Incoming Event : " + json.dumps(event) + "\n")
 
-    channel = event.get('channel')
+    channel = event.get('channel', admin_slack_channel_id)
     blocks = event.get('blocks')
     text = truncate(event.get('text', ''), 4000) # Slack max allow per message is 4000
     thread_ts = event.get('threadTs')
