@@ -1,3 +1,4 @@
+```mermaid
 %% Title and Description
 %% AWS Ops Health AI Solution Architecture
 %% # Operation event handling flow
@@ -70,4 +71,5 @@ erDiagram
 
     %% Apply styling to entities
     class OpsAgent opsAgentStyle
+```
 
