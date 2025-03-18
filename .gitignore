@@ -9,6 +9,7 @@ cdk.out
 .vscode
 lambda/src/events
 **/*.bkup
+**/*.mmd
 prompt-templates/bkup
 *.drawio
 deployment

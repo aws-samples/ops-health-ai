@@ -1,30 +1,30 @@
-%% @/solution-diagram.mmd draw a mermaid architecture diagram based on the following solution description:
+%% Title and Description
+%% AWS Ops Health AI Solution Architecture
 %% # Operation event handling flow
-%% 1. An operational event happen
+%% 1. An operational event happens
 %% 2. the event gets delivered to OpsAgent
 %% 3. OpsAgent analyzes the event content by connecting to the history event knowledge base and ticket system
-%% 4. OpsAgent takes actions such as create, update ticket based on the analyses and it consults AskAws knowledge base for remediation guidelines
+%% 4. OpsAgent takes actions such as create, update ticket based on the analyses and it consults AskExpert knowledge base for remediation guidelines
 %% 5. OpsAgent send report of actions and results via Slack
 
 %% # User chat handling flow
 %% 1. User sends query to OpsAgent via Slack
-%% 2. OpsAgent generated response to user query by connecting to history event knowledge base, AskAws knowledge base, and ticket tools
+%% 2. OpsAgent generated response to user query by connecting to history event knowledge base, AskExpert knowledge base, and ticket tools
 %% 3. OpsAgent sends synthesized response back to user via Slack
-
 
 erDiagram
     OperationalEvents ||--o{ OpsAgent : "delivered to"
-    OpsAgent ||--o{ HistoryEventKB : "analyzes using"
-    OpsAgent ||--o{ TicketSystem : "interacts with"
-    OpsAgent ||--o{ AskAwsKB : "consults for remediation"
+    OpsAgent ||--o{ OpsEventKnowledgeBases : "analyzes using"
+    OpsAgent ||--o{ TicketSystem : "create,read,update"
+    OpsAgent ||--o{ AskExpertKnowledgeBase : "consults for recommended actions"
     OpsAgent ||--o{ Slack : "sends reports via"
     User ||--o{ Slack : "sends query via"
     Slack ||--o{ OpsAgent : "delivers user query to"
-    OpsAgent ||--o{ HistoryEventKB : "retrieves data from"
-    OpsAgent ||--o{ AskAwsKB : "retrieves guidelines from"
-    OpsAgent ||--o{ TicketSystem : "retrieves ticket info from"
-    OpsAgent ||--o{ Slack : "sends response via"
-    Slack ||--o{ User : "delivers response to"
+    OpsAgent ||--o{ OpsEventKnowledgeBases : "retrieves knowledge from"
+    OpsAgent ||--o{ AskExpertKnowledgeBase : "retrieves advice from"
+    OpsAgent ||--o{ TicketSystem : "generates knowledge from"
+    OpsAgent ||--o{ Slack : "sends notifications via"
+    Slack ||--o{ User : "delivers notifications to"
 
     OperationalEvents {
         service_deprecation operational_issues
@@ -34,47 +34,40 @@ erDiagram
     }
 
     OpsAgent {
-        string agentId
-        string status
-        datetime lastActive
+        acknowledge_event search_ticket
+        create_ticket update_ticket
+        search_related_events ask_aws_expert
     }
 
-    HistoryEventKB {
-        string eventId
-        string eventType
-        datetime timestamp
-        json eventData
-        string resolution
+    OpsEventKnowledgeBases {
+        aws_health security_findings
+        event_start_time last_updated_time
+        affected_account event_description
     }
 
     TicketSystem {
-        string ticketId
-        string status
-        string priority
-        string description
-        datetime createdAt
-        datetime updatedAt
-        string assignee
+        associated_event issue_title
+        assigned_to issue_status
+        issue_description recommended_actions
     }
 
-    AskAwsKB {
-        string guidelineId
-        string serviceArea
-        string problemType
-        string remediation
-        string reference
+    AskExpertKnowledgeBase {
+        aws_knowledge_base proprietary_documentations
     }
 
     Slack {
-        string channelId
-        string messageId
-        string sender
-        datetime timestamp
-        string messageContent
+        admin_channel team_1_channel
+        team_2_channel team_3_channel
     }
 
     User {
-        string userId
-        string userName
-        string role
+        centralized_admin tenant_teams
+        self_managed_teams functional_teams
     }
+
+    %% Styling classes for each entity type
+    classDef opsAgentStyle stroke:#FF9999
+
+    %% Apply styling to entities
+    class OpsAgent opsAgentStyle
+
