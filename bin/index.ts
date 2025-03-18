@@ -9,7 +9,6 @@ import { OrgAdminOrgStack } from '../lib/org-admin-stack';
 import { OpsHealthAgentStack } from '../lib/agent-ops-health-stack';
 import { DataSourcingStack } from '../lib/data-sourcing-stack';
 import { OpsOrchestrationStack } from '../lib/ops-orchestration-stack';
-import { OpsEventLakeStack } from '../lib/ops-event-lake-stack';
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
@@ -31,8 +30,8 @@ const taEventDomains = [
 
 const sourceEventDomains = [
   ...healthEventDomains,
-  ...sechubEventDomains,
-  //...taEventDomains,
+  // ...sechubEventDomains, //uncomment if Security Hub is enabled
+  //...taEventDomains, //uncomment if Trusted Advisor is implemented
 ]
 
 const eventRegions = (process.env.EVENT_REGIONS as string).split(',')
@@ -115,23 +114,6 @@ const opsOrchestrationStack = new OpsOrchestrationStack(app, 'AiOpsOrchestration
   healthEventDomains: healthEventDomains,
   sechubEventDomains: sechubEventDomains,
   appEventDomainPrefix: appEventDomainPrefix
-});
-
-const opsEventLakeStack = new OpsEventLakeStack(app, 'AiOpsEventLakeStack', {
-  stackName: `AiOpsEventLakeStack`,
-  tags: {
-    env: 'prod',
-    "ManagedBy": 'AiOpsEventLakeStack',
-    "auto-delete": "no"
-  },
-  env: {
-    account: process.env.CDK_PROCESSING_ACCOUNT,
-    region: process.env.CDK_PROCESSING_REGION,
-  },
-  opsEventBucketArn: statefulStack.opsEventLakeBucket.bucketArn,
-  aiOpsEventBus: statefulStack.aiOpsEventBus,
-  healthEventDomains: healthEventDomains,
-  sechubEventDomains: sechubEventDomains
 });
 
 const opsHealthAgentStack = new OpsHealthAgentStack(app, 'AiOpsHealthAgentStack', {

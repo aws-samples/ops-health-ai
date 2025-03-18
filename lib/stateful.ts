@@ -14,7 +14,6 @@ export class StatefulStack extends cdk.Stack {
   public readonly opsHealthBucket: s3.Bucket;
   public readonly secFindingsBucket: s3.Bucket;
   public readonly taFindingsBucket: s3.Bucket;
-  public readonly opsEventLakeBucket: s3.Bucket;
   public readonly transientPayloadsBucket: s3.Bucket;
   public readonly eventManagementTable: dynamodb.ITable
   public readonly ticketManagementTable: dynamodb.ITable
@@ -26,96 +25,6 @@ export class StatefulStack extends cdk.Stack {
     super(scope, id, props);
 
     let listOfAcctPrincipals = props.scopedAccountIds.map(id => new iam.AccountPrincipal(id));
-
-    /*** create role QuickSight for event record visualization, QS dashboard is not implemented in this project but foundation is laid for illustration, needs to be changed in QS console settings to make QS use this role. ***/
-    const qsRole = new iam.Role(this, 'MyQuickSightServiceRole', {
-      assumedBy: new iam.ServicePrincipal('quicksight.amazonaws.com'),
-    });
-    qsRole.addToPolicy(new iam.PolicyStatement({
-      resources: ['*'],
-      actions: [
-        "athena:BatchGetQueryExecution",
-        "athena:CancelQueryExecution",
-        "athena:GetCatalogs",
-        "athena:GetExecutionEngine",
-        "athena:GetExecutionEngines",
-        "athena:GetNamespace",
-        "athena:GetNamespaces",
-        "athena:GetQueryExecution",
-        "athena:GetQueryExecutions",
-        "athena:GetQueryResults",
-        "athena:GetQueryResultsStream",
-        "athena:GetTable",
-        "athena:GetTables",
-        "athena:ListQueryExecutions",
-        "athena:RunQuery",
-        "athena:StartQueryExecution",
-        "athena:StopQueryExecution",
-        "athena:ListWorkGroups",
-        "athena:ListEngineVersions",
-        "athena:GetWorkGroup",
-        "athena:GetDataCatalog",
-        "athena:GetDatabase",
-        "athena:GetTableMetadata",
-        "athena:ListDataCatalogs",
-        "athena:ListDatabases",
-        "athena:ListTableMetadata",
-        "iam:List*",
-        "rds:Describe*",
-        "redshift:Describe*",
-        "s3:ListBucket",
-        "s3:GetObject",
-        "glue:*"
-      ],
-    }));
-    /******************************************************************************* */
-
-    /****************** S3 bucket to hold all ops event records**************** */
-    this.opsEventLakeBucket = new s3.Bucket(this, 'OpsEventLakeBucket', {
-      bucketName: `ops-event-lake-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
-      eventBridgeEnabled: true,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      lifecycleRules: [
-        {
-          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
-          enabled: true,
-          prefix: `ops-events`,
-          expiration: cdk.Duration.days(2)
-        },
-        {
-          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
-          enabled: true,
-          prefix: 'eventhose-errors',
-          expiration: cdk.Duration.days(2)
-        },
-        {
-          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
-          enabled: true,
-          prefix: 'athena-query-results',
-          expiration: cdk.Duration.days(2)
-        }
-      ]
-    });
-
-    this.opsEventLakeBucket.addToResourcePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        principals: [...listOfAcctPrincipals, qsRole],
-        actions: [
-          "s3:AbortMultipartUpload",
-          "s3:GetBucketLocation",
-          "s3:GetObject",
-          "s3:ListBucket",
-          "s3:ListBucketMultipartUploads",
-          "s3:PutObject",
-          "s3:PutObjectAcl"
-        ],
-        resources: [this.opsEventLakeBucket.arnForObjects("*"), this.opsEventLakeBucket.bucketArn]
-      }),
-    );
-    /******************************************************************************* */
 
     this.opsHealthBucket = new s3.Bucket(this, 'OpsHealthBucket', {
       bucketName: `aws-ops-health-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
