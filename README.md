@@ -123,7 +123,7 @@ Capture the “HandleSlackCommApiUrl” stack output URL, go to your [Slack app]
 ### Method 1 - Using AWS CLI
 Run below AWS CLIcommand:
 ```shell
-aws events put-events --entries file://test-events/mockup-ops-event.json
+aws events put-events --entries file://test-events/mockup-ops-event1.json
 aws events put-events --entries file://test-events/mockup-ops-event2.json
 aws events put-events --entries file://test-events/mockup-sec-finding.json
 ```

@@ -179,14 +179,14 @@ class AgentOps:
                 tool_summary += f"- {tool_response['tool_name']} tool returned:\n```json\n{formatted_output}\n```\n\n"
 
             current_prompt = f"""
-            Thank you for your previous response. Here are the results from the tools you used:
+            Here are the results from the tools you used in your previous response:
 
             {tool_summary}
 
             Here are the previous conversations:
             {conversation_context}
 
-            Based on these results, please continue your research. You may use the tools again if needed.
+            Based on these results, please continue your research. You may use the tools again if needed. If no further step needed, provide a comprehensive response that synthesizes the information you gather.
             """
 
             # Ask if the user wants to continue to the next step
