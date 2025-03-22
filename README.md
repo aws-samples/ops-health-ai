@@ -2,9 +2,10 @@
 [Original blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
 ## Change log since post
 - Modernized underlying LLMs to use Amazon Nova and Claud 3.5 Haiku
+- Auditable agent action report stored to S3 bucket
 - New implementation of the agentic flow to accommodate better customization and remove dependency on Amazon Bedrock Agent.
 - Agent actions auditable via reports produced and save in S3
-- Removed service dependency on Amazon Kendra - The 'ask-aws' agent now uses Amazon Bedrock Knowledge Bases as the RAG source. It contains the latest AWS documentation on selected topics. You must synchronize the 'AskAwsKnowledgeBase' knowledge base data source use the latest documentation. Your can do this using the [AWS Management Console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/knowledge-bases) after the solution is deployed (make sure the right region is selected)
+- Old version archived to 'legacy' branch
 
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
@@ -122,7 +123,8 @@ Capture the “HandleSlackCommApiUrl” stack output URL, go to your [Slack app]
 
 ## Testing the solution
 ### Method 1 - Using AWS CLI
-Run below AWS CLIcommand:
+Synchronize the 'AskAwsKnowledgeBase' knowledge base data source use the latest documentation. Your can do this using the [AWS Management Console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/knowledge-bases) after the solution is deployed (make sure the right region is selected). This step is to make sure the knowledge base is populated with the documentation the OpsAgent needs to answer relevant questions.
+Then run below AWS CLIcommand:
 ```shell
 aws events put-events --entries file://test-events/mockup-ops-event.json
 aws events put-events --entries file://test-events/mockup-ops-event2.json
