@@ -13,3 +13,5 @@ lambda/src/events
 prompt-templates/bkup
 *.drawio
 deployment
+.guidelines
+.meta.md
