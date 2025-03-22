@@ -3,6 +3,7 @@
 ## Change log since post
 - Modernized underlying LLMs to use Amazon Nova and Claud 3.5 Haiku
 - New implementation of the agentic flow to accommodate better customization and remove dependency on Amazon Bedrock Agent.
+- Agent actions auditable via reports produced and save in S3
 - Removed service dependency on Amazon Kendra - The 'ask-aws' agent now uses Amazon Bedrock Knowledge Bases as the RAG source. It contains the latest AWS documentation on selected topics. You must synchronize the 'AskAwsKnowledgeBase' knowledge base data source use the latest documentation. Your can do this using the [AWS Management Console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/knowledge-bases) after the solution is deployed (make sure the right region is selected)
 
 ## Prerequisites

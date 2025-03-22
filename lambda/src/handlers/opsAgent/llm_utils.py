@@ -328,7 +328,7 @@ def create_ticket(event_pk, ticket_title, ticket_detail='', recommended_action='
         # Send event to EventBridge to send Slack message to any team's channel
         if mockup_slack_channel_id:
             try:
-                message_body = f"You have just been assigned or copied for a new Ticket.\n TicketID: {ticket_id}\n Ticket Title:: {ticket_title}\n Assigned to: {assignee}\n Ticket Details: {ticket_detail}\n Severity: {severity}\n Recommendations: {recommended_action}"
+                message_body = f"You have just been assigned or copied for a new Ticket.\n TicketID: {ticket_id}\n Ticket Title:: {ticket_title}\n Assigned to: {assignee}\n Ticket Details: {ticket_detail}\n Severity: {severity}\n Recommendations: {recommended_action}\n EventPk: {event_pk}"
                 event_response = events.put_events(
                     Entries=[
                         {
