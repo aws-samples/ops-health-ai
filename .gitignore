@@ -14,4 +14,4 @@ prompt-templates/bkup
 *.drawio
 deployment
 .guidelines
-.meta.md
+docs

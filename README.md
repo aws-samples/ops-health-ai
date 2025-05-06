@@ -1,4 +1,4 @@
-# Managing cloud operational events at scale by AI
+# Operational Health Event Resolution Operator - OHERO
 [Original blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
 ## Change log since post
 - Modernized underlying LLMs to use Amazon Nova and Claud 3.5 Haiku

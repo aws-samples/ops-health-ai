@@ -31,7 +31,7 @@ const taEventDomains = [
 
 const sourceEventDomains = [
   ...healthEventDomains,
-  ...sechubEventDomains,
+  // ...sechubEventDomains,
   //...taEventDomains,
 ]
 

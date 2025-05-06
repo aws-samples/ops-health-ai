@@ -1,0 +1,37 @@
+{
+    "eventArn": "arn:aws:health:ap-southeast-2::event/EKS/AWS_EKS_PLANNED_LIFECYCLE_EVENT/Example1",
+    "service": "EKS",
+    "eventTypeCode": "AWS_EKS_PLANNED_LIFECYCLE_EVENT",
+    "eventTypeCategory": "plannedChange",
+    "eventScopeCode": "ACCOUNT_SPECIFIC",
+    "communicationId": "1234567890abcdef023456789-1",
+    "startTime": "Wed, 31 Jan 2024 02:00:00 GMT",
+    "endTime": "",
+    "lastUpdatedTime": "Wed, 29 Nov 2023 08:20:00 GMT",
+    "statusCode": "upcoming",
+    "eventRegion": "ap-southeast-2",
+    "eventDescription": [
+        {
+            "language": "en_US",
+            "latestDescription": "Amazon EKS has deprecated Kubernetes version 1.2x starting from Wed, 31 Jan 2024 02:00:00 GMT. You need to upgrade to the latest version or it will be automatically upgraded."
+        }
+    ],
+    "eventMetadata": {
+        "deprecated_versions": "Kubernetes 1.2x in EKS"
+    },
+    "affectedEntities": [
+        {
+            "entityValue": "arn:aws:eks:ap-southeast-2:111122223333:cluster/example1",
+            "lastupdatedTime": "Wed, 29 Nov 2023 08:20:00 GMT",
+            "statusCode": "RESOLVED"
+        },
+        {
+            "entityValue": "arn:aws:eks:ap-southeast-2:111122223333:cluster/example3",
+            "lastupdatedTime": "Wed, 29 Nov 2023 08:20:31 GMT",
+            "statusCode": "PENDING"
+        }
+    ],
+    "affectedAccount": "111122223333",
+    "page": "1",
+    "totalPages": "1"
+}
