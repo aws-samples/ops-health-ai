@@ -1,4 +1,4 @@
-# Operational Health Event Resolution Operator - OHERO
+# Operational Health Event Resolution Orchestrator - OHERO
 [Original blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
 ## Change log since post
 - Modernized underlying LLMs to use Amazon Nova and Claud 3.5 Haiku
@@ -7,6 +7,11 @@
 - Agent actions auditable via reports produced and save in S3
 - Old version archived to 'legacy' branch
 
+## Expecting soon (to-do list)
+- Long term memory of agent enabled with knowledge about past triage in addition to just the events
+- Sample integration with Jira in addition to just a mockup issue ticket database
+- Sample integration with other operational event sources such as Cost Anomaly Detection, Trusted Advisor Findings
+  
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
 - Enable AWS Health Organization view and delegate an administrator account in your AWS management account if you want to manage AWS Health events across your entire AWS Organization. This is optional if you only need to handle events from a single account.
