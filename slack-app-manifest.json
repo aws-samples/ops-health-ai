@@ -1,10 +1,10 @@
 {
     "display_information": {
-        "name": "edops-buddy"
+        "name": "Ohero"
     },
     "features": {
         "bot_user": {
-            "display_name": "edops-buddy",
+            "display_name": "ohero",
             "always_online": true
         }
     },

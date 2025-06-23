@@ -17,7 +17,7 @@ export interface OpsOrchestrationStackProps extends cdk.StackProps {
   slackAccessToken: string
   eventManagementTableName: string
   transientPayloadsBucketName: string
-  aiOpsEventBus: events.IEventBus
+  oheroEventBus: events.IEventBus
   healthEventDomains: string[],
   sechubEventDomains: string[],
   appEventDomainPrefix: string
@@ -56,13 +56,13 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /***************** Rest API and API integration to call Lambda functions ******* */
     // uncomment the below to disable logging when troubleshooting needed
     const logGroup = new logs.LogGroup(this, "ApiGatewayAccessLogs", {
-      logGroupName: `/aws/vendedlogs/apigateway/AiOpsRestEndpointsLogs`,
+      logGroupName: `/aws/vendedlogs/apigateway/OheroRestEndpointsLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    this.restApi = new apigw.RestApi(this, 'AiOpsRestEndpoints', {
-      restApiName: `${cdk.Stack.of(this).stackName}-aiOpsApi`,
+    this.restApi = new apigw.RestApi(this, 'OheroRestEndpoints', {
+      restApiName: `${cdk.Stack.of(this).stackName}-oheroApi`,
       description: `${cdk.Stack.of(this).stackName} Rest API Gateway`,
       cloudWatchRole: true,
       cloudWatchRoleRemovalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -91,10 +91,10 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /******************************************************************************* */
 
 
-    const lambdaExecutionRole = new iam.Role(this, 'AiOpsLambdaRole', {
-      roleName: 'AiOpsLambdaRole',
+    const lambdaExecutionRole = new iam.Role(this, 'OheroLambdaRole', {
+      roleName: 'OheroLambdaRole',
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-      description: 'IAM role to be assumed by AiOps app functions',
+      description: 'IAM role to be assumed by Ohero app functions',
     });
     lambdaExecutionRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -117,7 +117,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
 
     // ------------------- HandleSlackComm ---------------------
     const handleSlackCommFunction = new lambda.Function(this, 'HandleSlackComm', {
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/HandleSlackCommFunction'),
       handler: 'app.lambdaHandler',
       timeout: cdk.Duration.seconds(5),
@@ -129,7 +129,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
       environment: {
         SLACK_APP_VERIFICATION_TOKEN: props.slackAppVerificationToken,
         SLACK_ACCESS_TOKEN: props.slackAccessToken,
-        INTEGRATION_EVENT_BUS_NAME: props.aiOpsEventBus.eventBusName,
+        INTEGRATION_EVENT_BUS_NAME: props.oheroEventBus.eventBusName,
         EVENT_DOMAIN_PREFIX: props.appEventDomainPrefix,
         PAYLOAD_BUCKET: props.transientPayloadsBucketName
       },
@@ -176,7 +176,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
 
     /*** Lambda function to serve manual State machine callbacks from human user ***/
     const eventCallbackFunction = new lambda.Function(this, 'EventCallback', {
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/CallbackEventFunction'),
       handler: 'app.lambdaHandler',
       timeout: cdk.Duration.seconds(5),
@@ -204,16 +204,16 @@ export class OpsOrchestrationStack extends cdk.Stack {
     /******************************************************************************* */
 
     /********* Main event processing state machine *************************/
-    const opsOrchestrationSfnLogGroup = new logs.LogGroup(this, 'OpsOrchestrationSfnLogs', {
+    const opsOrchestrationSfnLogGroup = new logs.LogGroup(this, 'OheroOpsOrchestrationSfnLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      logGroupName: `/aws/vendedlogs/states/OpsOrchestrationSfnLogs`,
+      logGroupName: `/aws/vendedlogs/states/OheroOpsOrchestrationSfnLogs`,
     });
-    const opsOrchestrationSfn = new sfn.StateMachine(this, 'OpsOrchestration', {
+    const opsOrchestrationSfn = new sfn.StateMachine(this, 'OheroOpsOrchestration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-orchestration.asl')).toString().trim()),
       definitionSubstitutions: {
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
-        "AppEventBusPlaceholder": props.aiOpsEventBus.eventBusName,
+        "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
         "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix
       },
       tracingEnabled: false,
@@ -228,17 +228,17 @@ export class OpsOrchestrationStack extends cdk.Stack {
     });
 
     const opsOrchestrationSubscriptionRule1 = new events.Rule(this, 'OpsOrchestrationSubscription1', {
-      eventBus: props.aiOpsEventBus,
+      eventBus: props.oheroEventBus,
       eventPattern: {
         // source: [{ prefix: '' }] as any[]
         source: props.healthEventDomains
       },
       ruleName: 'OpsOrchestrationSubscription1',
-      description: 'AiOps main orchestration flow',
+      description: 'Ohero main orchestration flow',
       targets: [new evtTargets.SfnStateMachine(opsOrchestrationSfn)]
     });
     const opsOrchestrationSubscriptionRule2 = new events.Rule(this, 'OpsOrchestrationSubscription2', {
-      eventBus: props.aiOpsEventBus,
+      eventBus: props.oheroEventBus,
       eventPattern: {
         source: props.sechubEventDomains,
         detail: {
@@ -256,22 +256,22 @@ export class OpsOrchestrationStack extends cdk.Stack {
         }
       },
       ruleName: 'OpsOrchestrationSubscription2',
-      description: 'AiOps main orchestration flow',
+      description: 'Ohero main orchestration flow',
       targets: [new evtTargets.SfnStateMachine(opsOrchestrationSfn)]
     });
     /******************************************************************************* */
 
     /*** State machine for notification service *****/
-    const notificationSfnLogGroup = new logs.LogGroup(this, 'NotificationSfnLogs', {
+    const notificationSfnLogGroup = new logs.LogGroup(this, 'OheroNotificationSfnLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      logGroupName: `/aws/vendedlogs/states/NotificationSfnLogs`,
+      logGroupName: `/aws/vendedlogs/states/OheroNotificationSfnLogs`,
     });
-    const notificationSfn = new sfn.StateMachine(this, 'OpsNotification', {
+    const notificationSfn = new sfn.StateMachine(this, 'OheroNotification', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-notification.asl')).toString().trim()),
       definitionSubstitutions: {
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
-        "AppEventBusPlaceholder": props.aiOpsEventBus.eventBusName,
+        "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
         "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix,
         "SlackMeFunctionNamePlaceholder": this.slackMeFunction.functionName,
         "EventCallbackUrlPlaceholder": `${this.restApi.url}event-callback`,
@@ -288,13 +288,13 @@ export class OpsOrchestrationStack extends cdk.Stack {
       }
     });
 
-    const notificationRule = new events.Rule(this, 'OpsNotificationRule', {
-      eventBus: props.aiOpsEventBus,
+    const notificationRule = new events.Rule(this, 'OheroNotificationRule', {
+      eventBus: props.oheroEventBus,
       eventPattern: {
         source: [`${props.appEventDomainPrefix}.ops-orchestration`]
       },
       ruleName: 'OpsNotificationRule',
-      description: 'Subscription by AiOps notification service.',
+      description: 'Subscription by Ohero notification service.',
       targets: [new evtTargets.SfnStateMachine(notificationSfn)]
     });
     /******************************************************************************* */

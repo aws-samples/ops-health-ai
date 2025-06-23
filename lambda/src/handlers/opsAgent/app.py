@@ -46,8 +46,8 @@ def lambda_handler(event, context):
     )
 
     # print('RAW RESPONSE', json.dumps(research_results, indent=2))
-    # Save report for audit
-    agent.save_audit(llm_utils.summarize_pna(agent.name, research_results))
+    # Save report as distilled knowledge for future reference or audit
+    agent.save_knowledge(llm_utils.summarize_pna(agent.name, research_results))
     # The AI agent will remember previous conversation for at least 20 mins
     session_expires_at = int(time.time() + 20 * 60);
     result = {

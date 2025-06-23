@@ -23,12 +23,13 @@ export interface OpsHealthAgentProps extends cdk.StackProps {
   slackAccessToken: string
   eventManagementTableName: string
   ticketManagementTableName: string
-  aiOpsEventBus: events.IEventBus
+  oheroEventBus: events.IEventBus
   sourceEventDomains: string[]
   appEventDomainPrefix: string
   slackMeFunction: lambda.IFunction
   guardrailArn: string
-  mockupSlackChannelId: string
+  teamManagementTableName: string
+  // mockupSlackChannelId: string
 }
 
 export class OpsHealthAgentStack extends cdk.Stack {
@@ -123,7 +124,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     })
 
     const ingestKbFunction = new lambda.Function(this, 'IngestOpsKbFunction', {
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/IngestOpsKbFunction'),
       handler: 'app.lambdaHandler',
       timeout: cdk.Duration.seconds(15),
@@ -201,13 +202,14 @@ export class OpsHealthAgentStack extends cdk.Stack {
       reservedConcurrentExecutions: 1, // Allowed concurrency set to 1 to accommodate LLM API throttling retries, make sure your AWS account and region has the appropriate API quota for used LLMs if faster processing speed needed.
       environment: {
         MEM_BUCKET: props.transientPayloadsBucketName,
+        KNOWLEDGE_BUCKET: props.opsHealthBucketName,
         OPS_KNOWLEDGE_BASE_ID: opsHealthKnowledgeBase.knowledgeBaseId,
         SECHUB_KNOWLEDGE_BASE_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
         AWS_KB_ID: askAwsKnowledgeBase.knowledgeBaseId,
         TICKET_TABLE: props.ticketManagementTableName,
         EVENT_SOURCE_NAME: `${props.appEventDomainPrefix}.ops-orchestration`,
-        EVENT_BUS_NAME: props.aiOpsEventBus.eventBusName,
-        MOCKUP_SLACK_CHANNEL_ID: props.mockupSlackChannelId,
+        EVENT_BUS_NAME: props.oheroEventBus.eventBusName,
+        TEAM_TABLE: props.teamManagementTableName,
         BEDROCK_GUARDRAIL_ID: importedGuardrail.guardrailId,
         BEDROCK_GUARDRAIL_VER: importedGuardrail.guardrailVersion
       },
@@ -278,7 +280,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    const aiIntegrationSfn = new sfn.StateMachine(this, 'AiAgentIntegration', {
+    const aiIntegrationSfn = new sfn.StateMachine(this, 'OheroAiIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-integration.asl')).toString().trim()),
       definitionSubstitutions: {
         "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
@@ -297,7 +299,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     });
 
     const integrationRule = new events.Rule(this, 'OpsIntegrationWithAiRule', {
-      eventBus: props.aiOpsEventBus,
+      eventBus: props.oheroEventBus,
       eventPattern: {
         source: [`${props.appEventDomainPrefix}.ops-orchestration`],
         detailType: [`Health.EventAdded`, `Health.EventUpdated`, `SecHub.EventAdded`]
@@ -309,15 +311,15 @@ export class OpsHealthAgentStack extends cdk.Stack {
     /******************************************************************************* */
 
     /*** Role to be used by Bedrock chat integration state machines ************/
-    const aiOpsChatRole = new iam.Role(this, 'AiOpsChatRole', {
-      roleName: 'AiOpsChatRole',
+    const oheroChatRole = new iam.Role(this, 'OheroChatRole', {
+      roleName: 'OheroChatRole',
       assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
       description: 'IAM role to be assumed by Bedrock chat integration state machines',
     });
-    aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'));
-    aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSLambda_FullAccess'));
-    aiOpsChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
-    aiOpsChatRole.addToPolicy(new iam.PolicyStatement({
+    oheroChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'));
+    oheroChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSLambda_FullAccess'));
+    oheroChatRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
+    oheroChatRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         "bedrock:RetrieveAndGenerate",
@@ -335,12 +337,12 @@ export class OpsHealthAgentStack extends cdk.Stack {
     /******************************************************************************* */
 
     /*** State machine for slack command event integration microservices *****/
-    const aiOpsChatSfnLogGroup = new logs.LogGroup(this, 'AiOpsChatSfnLogs', {
-      logGroupName: `/aws/vendedlogs/states/AiOpsChatSfnLogs`,
+    const oheroChatSfnLogGroup = new logs.LogGroup(this, 'OheroChatSfnLogs', {
+      logGroupName: `/aws/vendedlogs/states/OheroChatSfnLogs`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    const aiOpsChatSfn = new sfn.StateMachine(this, 'AiOpsChatIntegration', {
+    const oheroChatSfn = new sfn.StateMachine(this, 'OheroChatIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-chat.asl')).toString().trim()),
       definitionSubstitutions: {
         "OpsHealthKnowledgeBaseIdPlaceHolder": opsHealthKnowledgeBase.knowledgeBaseId,
@@ -353,23 +355,23 @@ export class OpsHealthAgentStack extends cdk.Stack {
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,
       timeout: cdk.Duration.minutes(5),
-      role: aiOpsChatRole,
+      role: oheroChatRole,
       logs: {
-        destination: aiOpsChatSfnLogGroup,
+        destination: oheroChatSfnLogGroup,
         level: sfn.LogLevel.ERROR,
         includeExecutionData: true,
       }
     });
 
-    const aiOpsChatRule = new events.Rule(this, 'AiOpsChatRule', {
-      eventBus: props.aiOpsEventBus,
+    const oheroChatRule = new events.Rule(this, 'OheroChatRule', {
+      eventBus: props.oheroEventBus,
       eventPattern: {
         source: [`${props.appEventDomainPrefix}.ops-orchestration`],
         detailType: [`Chat.SlackMessageReceived`, `Chat.SendSlackRequested`]
       },
-      ruleName: 'AiOpsChatRule',
+      ruleName: 'OheroChatRule',
       description: 'Command event processing integration with external services.',
-      targets: [new evtTargets.SfnStateMachine(aiOpsChatSfn)]
+      targets: [new evtTargets.SfnStateMachine(oheroChatSfn)]
     });
     /******************************************************************************* */
 

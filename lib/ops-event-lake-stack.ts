@@ -7,7 +7,7 @@ import * as evtTargets from "aws-cdk-lib/aws-events-targets";
 
 export interface OpsEventLakeStackProps extends cdk.StackProps {
   opsEventBucketArn: string
-  aiOpsEventBus: events.IEventBus,
+  oheroEventBus: events.IEventBus,
   healthEventDomains: string[],
   sechubEventDomains: string[]
 }
@@ -79,7 +79,7 @@ export class OpsEventLakeStack extends cdk.Stack {
     });
 
     const eventLakeRule = new events.Rule(this, 'OpsEventLakeRule', {
-      eventBus: props.aiOpsEventBus,
+      eventBus: props.oheroEventBus,
       eventPattern: {
         // source: [{ prefix: '' }] as any[]
         source: [

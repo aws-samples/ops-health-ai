@@ -13,12 +13,12 @@ export interface StatefulProps extends cdk.StackProps {
 export class StatefulStack extends cdk.Stack {
   public readonly opsHealthBucket: s3.Bucket;
   public readonly secFindingsBucket: s3.Bucket;
-  public readonly taFindingsBucket: s3.Bucket;
   public readonly opsEventLakeBucket: s3.Bucket;
   public readonly transientPayloadsBucket: s3.Bucket;
   public readonly eventManagementTable: dynamodb.ITable
   public readonly ticketManagementTable: dynamodb.ITable
-  public readonly aiOpsEventBus: events.IEventBus
+  public readonly teamManagementTable: dynamodb.ITable
+  public readonly oheroEventBus: events.IEventBus
   public readonly bedrockGuardrail: bedrock.CfnGuardrail
   public readonly bedrockGuardrailVersion: bedrock.CfnGuardrailVersion
 
@@ -171,33 +171,6 @@ export class StatefulStack extends cdk.Stack {
       }),
     );
 
-    this.taFindingsBucket = new s3.Bucket(this, 'TaFindingsBucket', {
-      bucketName: `aws-ta-findings-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      eventBridgeEnabled: true,
-      autoDeleteObjects: true,
-    });
-
-    this.taFindingsBucket.addToResourcePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        principals: [
-          ...listOfAcctPrincipals
-        ],
-        actions: [
-          "s3:AbortMultipartUpload",
-          "s3:GetBucketLocation",
-          "s3:GetObject",
-          "s3:ListBucket",
-          "s3:ListBucketMultipartUploads",
-          "s3:PutObject",
-          "s3:PutObjectAcl"
-        ],
-        resources: [this.taFindingsBucket.arnForObjects("*"), this.taFindingsBucket.bucketArn],
-      }),
-    );
-
     /****************** S3 bucket to hold transient event payloads that are larger than 256k limit **************** */
     this.transientPayloadsBucket = new s3.Bucket(this, 'TransientPayloadsBucket', {
       bucketName: `transient-payloads-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
@@ -233,14 +206,14 @@ export class StatefulStack extends cdk.Stack {
     );
     /******************************************************************************* */
 
-    /****** Dedicated event bus for AiOps integrated events processing microservices*************** */
-    this.aiOpsEventBus = new events.EventBus(this, "AiOpsEventBus", {
-      eventBusName: `${cdk.Stack.of(this).stackName}AiOpsEventBus`,
+    /****** Dedicated event bus for Ohero integrated events processing microservices*************** */
+    this.oheroEventBus = new events.EventBus(this, "OheroEventBus", {
+      eventBusName: `${cdk.Stack.of(this).stackName}OheroEventBus`,
     })
 
-    const cfnEventBusResourcePolicy = new events.CfnEventBusPolicy(this, "AiOpsEventBusResourcePolicy", {
-      statementId: "AiOpsEventBusResourcePolicy",
-      eventBusName: this.aiOpsEventBus.eventBusName,
+    const cfnEventBusResourcePolicy = new events.CfnEventBusPolicy(this, "OheroEventBusResourcePolicy", {
+      statementId: "OheroEventBusResourcePolicy",
+      eventBusName: this.oheroEventBus.eventBusName,
       statement:
       {
         "Effect": "Allow",
@@ -250,15 +223,30 @@ export class StatefulStack extends cdk.Stack {
         "Principal": {
           "AWS": props.scopedAccountIds
         },
-        "Resource": this.aiOpsEventBus.eventBusArn
+        "Resource": this.oheroEventBus.eventBusArn
       }
     });
 
-    new cdk.CfnOutput(this, "aiOpsEventBusArn", { value: this.aiOpsEventBus.eventBusArn })
+    new cdk.CfnOutput(this, "oheroEventBusArn", { value: this.oheroEventBus.eventBusArn })
     /******************************************************************************* */
 
     /******************* DynamoDB Table to track event reaction status *****************/
     this.eventManagementTable = new dynamodb.Table(this, 'EventManagementTable', {
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+        recoveryPeriodInDays: 35
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      partitionKey: {
+        name: "PK",
+        type: dynamodb.AttributeType.STRING
+      },
+    });
+    /*************************************************************************************** */
+
+    /******************* DynamoDB Table to team id, team name, and channel id mappings *****************/
+    this.teamManagementTable = new dynamodb.Table(this, 'TeamManagementTable', {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: {
         pointInTimeRecoveryEnabled: true,

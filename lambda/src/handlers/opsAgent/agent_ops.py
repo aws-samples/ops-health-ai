@@ -1,9 +1,11 @@
-import boto3, os, time, json, uuid
+import boto3, os, re, json, uuid
+from datetime import datetime
 import llm_utils
 from pathlib import Path
 
 region = os.environ['AWS_REGION']
-bucket = os.environ['MEM_BUCKET']
+mem_bucket = os.environ['MEM_BUCKET']
+knowledge_bucket = os.environ['KNOWLEDGE_BUCKET']
 
 s3 = boto3.client('s3')
 
@@ -29,6 +31,7 @@ class AgentOps:
 
         # Replace $tools$ placeholder with actual tool descriptions
         system_content = system_content.replace("$tools$", self.tool_descriptions)
+        system_content = system_content.replace("{{currentDateTime}}", datetime.now().isoformat())
 
         self.system_prompt = [{
             "text": system_content
@@ -40,7 +43,7 @@ class AgentOps:
             return []
         else:
             try:
-                response = s3.get_object(Bucket=bucket, Key=f"{self.name}-memory/{self.session_id}.json")
+                response = s3.get_object(Bucket=mem_bucket, Key=f"{self.name}-memory/{self.session_id}.json")
                 file_content = json.loads(response['Body'].read().decode('utf-8'))
                 print(f'{self.name} memory exists and loaded from {self.session_id}.json')
                 return file_content['conversation_history']
@@ -60,7 +63,7 @@ class AgentOps:
         # print('MEMORY TO SAVE: ', json.dumps(memory, indent=2))
         try:
             s3.put_object(
-                Bucket=bucket,
+                Bucket=mem_bucket,
                 Key=f"{self.name}-memory/{self.session_id}.json",
                 Body=json.dumps(memory),
                 ContentType='application/json'
@@ -68,16 +71,23 @@ class AgentOps:
         except Exception as e:
             print(f"Error writing to S3 (key={self.session_id}.json): {str(e)}")
 
-    def save_audit(self, summary):
+    def save_knowledge(self, summary):
+        metadata = llm_utils.generate_knowledge_metadata(summary)
+        if metadata:
+            s3.put_object(
+                Bucket=knowledge_bucket,
+                Key=f"{self.name}-knowledge/{self.session_id}.md.metadata.json",
+                Body=metadata
+            )
         try:
             s3.put_object(
-                Bucket=bucket,
-                Key=f"{self.name}-memory/{self.session_id}.md",
+                Bucket=knowledge_bucket,
+                Key=f"{self.name}-knowledge/{self.session_id}.md",
                 Body=summary,
                 ContentType='text/markdown'
             )
         except Exception as e:
-            print(f"Error writing to S3 (key={self.session_id}.md): {str(e)}")
+            print(f"Saving knowledge failed: {str(e)}")
 
     def plan_and_act(self, query, max_steps=5):
         print(f"Starting research on: {query}")
@@ -188,10 +198,6 @@ class AgentOps:
 
             Based on these results, please continue your research. You may use the tools again if needed. If no further step needed, provide a comprehensive response that synthesizes the information you gather.
             """
-
-            # Ask if the user wants to continue to the next step
-            if step < max_steps - 1:
-                print("\nContinuing to next step...\n")
 
         print("\nWorkflow complete.")
 

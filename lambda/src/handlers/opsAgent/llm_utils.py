@@ -11,7 +11,7 @@ from boto3 import client
 from botocore.config import Config
 
 # Setting up tool and utility environment
-mockup_slack_channel_id = os.environ.get('MOCKUP_SLACK_CHANNEL_ID') # the Slack channel that each team own to receive notification when a ticket is assigned to them, a mockup channel is used here for demo purpose.
+team_table = os.environ.get('TEAM_TABLE')
 region = os.environ['AWS_REGION']
 ops_knowledge_base_id = os.environ['OPS_KNOWLEDGE_BASE_ID']
 sechub_knowledge_base_id = os.environ['SECHUB_KNOWLEDGE_BASE_ID']
@@ -23,7 +23,8 @@ bedrock_guardrail_ver = os.environ.get('BEDROCK_GUARDRAIL_VER')
 
 CLAUDE_35_SONNET_MODEL_ID = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
 CLAUDE_37_SONNET_MODEL_ID = 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
-CLAUDE_35_HAIKU_MODEL_ID = 'anthropic.claude-3-5-haiku-20241022-v1:0'
+CLAUDE_35_HAIKU_MODEL_ID = 'us.anthropic.claude-3-5-haiku-20241022-v1:0'
+# CLAUDE_35_HAIKU_MODEL_ID = 'anthropic.claude-3-5-haiku-20241022-v1:0' # some region may not support cross-region inference, use this instead
 CLAUDE_3_HAIKU_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0'
 AMAZON_NOVA_MICRO_MODEL_ID = 'us.amazon.nova-micro-v1:0'
 
@@ -304,6 +305,24 @@ def create_ticket(event_pk, ticket_title, ticket_detail='', recommended_action='
         # Generate a unique ticket ID
         ticket_id = str(uuid.uuid4())
 
+        # look up the team management table to find the SlackChannelId by assignee
+        try:
+            team_response = dynamodb.get_item(
+                TableName=team_table,
+                Key={
+                    'PK': {'S': assignee}
+                }
+            )
+            team_slack_channel_id = team_response.get('Item', {}).get('SlackChannelId', {}).get('S', '')
+        except Exception as event_error:
+            print(f"Error finding team channel id: {str(event_error)}, are you sure the team id is correct?")
+            return {
+            'create_ticket': {
+                'ticketId': ticket_id,
+                'body': body
+            }
+        }
+
         # Prepare parameters for PutItem operation
         create_ticket_params = {
             'TableName': ticket_table,
@@ -326,7 +345,7 @@ def create_ticket(event_pk, ticket_title, ticket_detail='', recommended_action='
         body = json.dumps(response)
 
         # Send event to EventBridge to send Slack message to any team's channel
-        if mockup_slack_channel_id:
+        if team_slack_channel_id:
             try:
                 message_body = f"You have just been assigned or copied for a new Ticket.\n TicketID: {ticket_id}\n Ticket Title:: {ticket_title}\n Assigned to: {assignee}\n Ticket Details: {ticket_detail}\n Severity: {severity}\n Recommendations: {recommended_action}\n EventPk: {event_pk}"
                 event_response = events.put_events(
@@ -336,7 +355,7 @@ def create_ticket(event_pk, ticket_title, ticket_detail='', recommended_action='
                             'DetailType': 'Chat.SendSlackRequested', # # The event type the ChatIntegration service can handle
                             'Detail': json.dumps({
                                 'event': {
-                                    'channel': mockup_slack_channel_id,
+                                    'channel': team_slack_channel_id,
                                     'text': message_body,
                                     'ts': ''
                                 }
@@ -819,6 +838,41 @@ def process_tool_outputs(tool_responses):
             output += f"Error: {response['tool_output']['error']}\n\n"
         else:
             output += f"Output: `{json.dumps(response['tool_output'], indent=2)}`\n\n"
+
+def generate_knowledge_metadata(summary):
+    """
+    Generate metadata for knowledge base entries using Nova LLM
+    """
+    current_time = datetime.now()
+    metadata_prompt = f"""Extract key metadata from this conversation summary for knowledge base indexing. Do not add a key if you are not >70% sure about the value. Return only valid JSON with these fields:
+- "category":type of event, either operational issue, planned change, security, cost, or others
+- "services": array of AWS services mentioned
+- "timeOheroTriaged": {current_time.isoformat()}
+- "timeOfEvent": the start time of the event in ISO format
+
+Summary: {summary[:450000]}"""
+    
+    try:
+        metadata_response = bedrock_runtime.converse(
+            modelId=AMAZON_NOVA_MICRO_MODEL_ID,
+            messages=[{"role": "user", "content": [{"text": metadata_prompt}]}],
+            inferenceConfig={"temperature": 0.0, "maxTokens": 1000}
+        )
+        
+        metadata_text = metadata_response['output']['message']['content'][0]['text']
+        print(f"Auto-generated metadata for knowledge: {metadata_text}")
+        
+        # Extract JSON using regex
+        json_match = re.search(r'\{.*\}', metadata_text, re.DOTALL)
+        if not json_match:
+            raise ValueError("No JSON found in response")
+        
+        return json.dumps({
+            "metadataAttributes": json.loads(json_match.group())
+        })
+    except Exception as e:
+        print(f"Generating knowledge metadata failed: {str(e)}")
+        return None
 
 def display_claude_tool_response(response):
     """

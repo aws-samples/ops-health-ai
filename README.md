@@ -3,14 +3,13 @@
 ## Change log since post
 - Modernized underlying LLMs to use Amazon Nova and Claud 3.5 Haiku
 - Auditable agent action report stored to S3 bucket
-- New implementation of the agentic flow to accommodate better customization and remove dependency on Amazon Bedrock Agent.
-- Agent actions auditable via reports produced and save in S3
+- Optimization of Agent long term memory and knowledge retrieval
 - Old version archived to 'legacy' branch
 
 ## Expecting soon (to-do list)
-- Long term memory of agent enabled with knowledge about past triage in addition to just the events
 - Sample integration with Jira in addition to just a mockup issue ticket database
-- Sample integration with other operational event sources such as Cost Anomaly Detection, Trusted Advisor Findings
+- Additional integration with other operational event sources such as Cost Anomaly Detection, CloudWatch alarms
+- Event buffering
   
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
@@ -63,8 +62,8 @@ High-level interactions between solution elements
 2. Install your app into your workspace, take note of the “Bot User OAuth Token” value to be used in next steps.
 3. Take note of the “Verification Token” value under your app’s Basic Information, you will need it in next steps.
 4. In your Slack desktop app, go to your workspace and add the newly created app.
-5. Create a Slack channel and add the newly created app as an integrated app to the channel, this channel will be used to watch how events arrive and get processed.
-6. Create another Slack channel and add the newly created app as an integrated app to the channel, this channel will be used to test out how ticket notifications land in different team channels.
+5. Create a Slack channel (to be used for admin team) and add the newly created app as an integrated app to the channel, this channel will be used to watch how events arrive and get processed.
+6. Create another Slack channel (to be used for a sample tenant team) and add the newly created app as an integrated app to the channel, this channel will be used to test out how ticket notifications land in different team channels.
 7. Find and take note of the channel id of above channels by right-clicking on the channel name and selecting ‘Additional options’ to access the ‘More’ menu. Within the ‘More’ menu, click on ‘Open details’ to reveal the Channel details.
 
 ### Prepare your deployment environment for the worker account
@@ -112,9 +111,8 @@ CDK_ADMIN_ACCOUNT=<replace with your 12 digits admin AWS account id>
 CDK_PROCESSING_ACCOUNT=<replace with your 12 digits worker AWS account id. This account id is the same as the admin account id if using single account setup>
 EVENT_REGIONS=us-east-1,<region 1 of where your infrastructures are hosted>,<region 2 of where your infrastructures are hosted>
 CDK_PROCESSING_REGION=<replace with the region where you want the worker services to be, e.g. us-east-1>
-EVENT_HUB_ARN=arn:aws:events:<replace with the worker service region>:<replace with the worker service account id>:event-bus/AiOpsStatefulStackAiOpsEventBus
-SLACK_CHANNEL_ID=<your admin Slack channel ID here>
-MOCKUP_SLACK_CHANNEL_ID=<your team mockup Slack channel ID here>
+EVENT_HUB_ARN=arn:aws:events:<replace with the worker service region>:<replace with the worker service account id>:event-bus/OheroStatefulStackOheroEventBus
+SLACK_CHANNEL_ID=<your admin (operations team) Slack channel ID here>
 SLACK_APP_VERIFICATION_TOKEN=<replace with your Slack app verification token>
 SLACK_ACCESS_TOKEN=<replace with your Slack Bot User OAuth Token value>
 ```
@@ -125,6 +123,9 @@ In project root directory, run the following commend:
 cdk deploy --all --require-approval never
 ```
 Capture the “HandleSlackCommApiUrl” stack output URL, go to your [Slack app](https://api.slack.com/apps) created in previous steps, go to Event Subscriptions, Request URL Change, then update the URL value with the stack output URL and save.
+
+## Onboard a tenant team
+Log in AWS console (worker account), find the 'TeamManagementTable' in DynamoDB console, create a record with PK = app01, and a string attribute 'SlackChannelId' = the slack channel id for the sample tenant account
 
 ## Testing the solution
 ### Method 1 - Using AWS CLI

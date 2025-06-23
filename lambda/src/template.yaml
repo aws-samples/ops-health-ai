@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Utility functions for AiOps
+  Utility functions for OHERO
 
 Globals:
   Function:
@@ -60,7 +60,7 @@ Resources:
       PackageType: Zip
       CodeUri: handlers/ingestOpsKb/
       Handler: app.lambdaHandler
-      Runtime: nodejs18.x
+      Runtime: nodejs20.x
       Timeout: 10
       MemorySize: 128
       Environment:
@@ -78,29 +78,13 @@ Resources:
         EntryPoints:
         - app.ts
 
-  EventToKnowledgeBaseFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      PackageType: Zip
-      CodeUri: handlers/eventToKnowledgeBase/
-      Handler: app.lambdaHandler
-      Runtime: nodejs18.x
-      Timeout: 10
-      MemorySize: 128
-      Environment:
-        Variables:
-          TARGET_S3_REGION: "string"
-          OPS_HEALTH_S3: "string"
-          TA_FINDINGS_s3: "string"
-          SEC_FINDINGs_S3: "string"
-
   HandleSlackCommFunction:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Zip
       CodeUri: handlers/handleSlackComm/
       Handler: app.lambdaHandler
-      Runtime: nodejs18.x
+      Runtime: nodejs20.x
       Timeout: 10
       MemorySize: 128
       Environment:
@@ -125,7 +109,7 @@ Resources:
       PackageType: Zip
       CodeUri: handlers/callbackEvent/
       Handler: app.lambdaHandler
-      Runtime: nodejs18.x
+      Runtime: nodejs20.x
       Timeout: 10
       MemorySize: 128
       Environment:

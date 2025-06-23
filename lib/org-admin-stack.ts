@@ -7,7 +7,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 
 export interface OrgAdminProps extends cdk.StackProps {
-  aiOpsEventBusArn: string
+  oheroEventBusArn: string
   sourceEventDomains: string[]
   secHubBucketName: string
 }
@@ -17,15 +17,15 @@ export class OrgAdminOrgStack extends cdk.Stack {
     super(scope, id, props);
 
     // ----------- Event forwarding ---------------
-    new events.Rule(this, `AiOpsEventHubForwardingRule`, {
+    new events.Rule(this, `OheroEventHubForwardingRule`, {
       eventPattern: {
         source: props.sourceEventDomains,
         detailType: [{ "anything-but": { "suffix": "via CloudTrail" } }] as any[]
       },
       targets: [new evtTargets.EventBus(events.EventBus.fromEventBusArn(
         this,
-        'AiOpsEventHub',
-        props.aiOpsEventBusArn,
+        'OheroEventHub',
+        props.oheroEventBusArn,
       ),)]
     });
 

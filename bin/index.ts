@@ -7,7 +7,6 @@ import * as path from "path";
 import { StatefulStack } from '../lib/stateful';
 import { OrgAdminOrgStack } from '../lib/org-admin-stack';
 import { OpsHealthAgentStack } from '../lib/agent-ops-health-stack';
-import { DataSourcingStack } from '../lib/data-sourcing-stack';
 import { OpsOrchestrationStack } from '../lib/ops-orchestration-stack';
 import { OpsEventLakeStack } from '../lib/ops-event-lake-stack';
 
@@ -17,16 +16,12 @@ const app = new cdk.App();
 
 const healthEventDomains = [
   'aws.health',
-  'aiops.health', //custom prefixed event source for mockup test events
+  'ohero.health', //custom prefixed event source for mockup test events
 ]
 
 const sechubEventDomains = [
   'aws.securityhub',
-  'aiops.securityhub', //custom prefixed event source for mockup test events
-]
-const taEventDomains = [
-  'aws.trustedadvisor',
-  'aiops.trustedadvisor', //custom prefixed event source for mockup test events
+  'ohero.securityhub', //custom prefixed event source for mockup test events
 ]
 
 const sourceEventDomains = [
@@ -37,15 +32,15 @@ const sourceEventDomains = [
 
 const eventRegions = (process.env.EVENT_REGIONS as string).split(',')
 
-const appEventDomainPrefix = 'com.app.aiops'
+const appEventDomainPrefix = 'com.app.ohero'
 
 const scopedAccountIds = process.env.CDK_PROCESSING_ACCOUNT as string === process.env.CDK_ADMIN_ACCOUNT as string? [process.env.CDK_PROCESSING_ACCOUNT as string] : [process.env.CDK_PROCESSING_ACCOUNT as string, process.env.CDK_ADMIN_ACCOUNT as string]
 
-const statefulStack = new StatefulStack(app, 'AiOpsStatefulStack', {
-  stackName: `AiOpsStatefulStack`,
+const statefulStack = new StatefulStack(app, 'OheroStatefulStack', {
+  stackName: `OheroStatefulStack`,
   tags: {
     env: 'prod',
-    "ManagedBy": 'AiOpsStatefulStack',
+    "ManagedBy": 'OheroStatefulStack',
     "auto-delete": "no"
   },
   env: {
@@ -57,49 +52,29 @@ const statefulStack = new StatefulStack(app, 'AiOpsStatefulStack', {
 
 /* ------  Admin account setup, make sure you cover all regions your organization has footprint in */
 for (const region of eventRegions) {
-  new OrgAdminOrgStack(app, `AiOpsOrgAdminStack-${region}`, {
-    stackName: `AiOpsOrgAdminStack-${region}`,
+  new OrgAdminOrgStack(app, `OheroOrgAdminStack-${region}`, {
+    stackName: `OheroOrgAdminStack-${region}`,
     tags: {
       env: 'prod',
-      "ManagedBy": `AiOpsOrgAdminStack-${region}`,
+      "ManagedBy": `OheroOrgAdminStack-${region}`,
       "auto-delete": "no"
     },
     env: {
       account: process.env.CDK_ADMIN_ACCOUNT,
       region: region,
     },
-    aiOpsEventBusArn: process.env.EVENT_HUB_ARN as string,
+    oheroEventBusArn: process.env.EVENT_HUB_ARN as string,
     sourceEventDomains: sourceEventDomains,
     secHubBucketName: `aws-sec-findings-${statefulStack.account}-${statefulStack.region}`
   });
 }
 /********************************************************************** */
 
-const dataSourcingStack = new DataSourcingStack(app, 'AiOpsDataSourcingStack', {
-  stackName: `AiOpsDataSourcingStack`,
+const opsOrchestrationStack = new OpsOrchestrationStack(app, 'OheroOrchestrationStack', {
+  stackName: `OheroOrchestrationStack`,
   tags: {
     env: 'prod',
-    "ManagedBy": 'AiOpsDataSourcingStack',
-    "auto-delete": "no"
-  },
-  env: {
-    account: process.env.CDK_PROCESSING_ACCOUNT,
-    region: process.env.CDK_PROCESSING_REGION,
-  },
-  opsHealthBucketName: statefulStack.opsHealthBucket.bucketName,
-  taFindingsBucketName: statefulStack.taFindingsBucket.bucketName,
-  secFindingsBucketName: statefulStack.secFindingsBucket.bucketName,
-  healthEventDomains: healthEventDomains,
-  sechubEventDomains: sechubEventDomains,
-  targetS3Region: cdk.Stack.of(statefulStack).region,
-  aiOpsEventBus: statefulStack.aiOpsEventBus
-});
-
-const opsOrchestrationStack = new OpsOrchestrationStack(app, 'AiOpsOrchestrationStack', {
-  stackName: `AiOpsOrchestrationStack`,
-  tags: {
-    env: 'prod',
-    "ManagedBy": 'AiOpsOrchestrationStack',
+    "ManagedBy": 'OheroOrchestrationStack',
     "auto-delete": "no"
   },
   env: {
@@ -111,17 +86,17 @@ const opsOrchestrationStack = new OpsOrchestrationStack(app, 'AiOpsOrchestration
   slackAccessToken: process.env.SLACK_ACCESS_TOKEN as string,
   eventManagementTableName: statefulStack.eventManagementTable.tableName,
   transientPayloadsBucketName: statefulStack.transientPayloadsBucket.bucketName,
-  aiOpsEventBus: statefulStack.aiOpsEventBus,
+  oheroEventBus: statefulStack.oheroEventBus,
   healthEventDomains: healthEventDomains,
   sechubEventDomains: sechubEventDomains,
   appEventDomainPrefix: appEventDomainPrefix
 });
 
-const opsEventLakeStack = new OpsEventLakeStack(app, 'AiOpsEventLakeStack', {
-  stackName: `AiOpsEventLakeStack`,
+const opsEventLakeStack = new OpsEventLakeStack(app, 'OheroEventLakeStack', {
+  stackName: `OheroEventLakeStack`,
   tags: {
     env: 'prod',
-    "ManagedBy": 'AiOpsEventLakeStack',
+    "ManagedBy": 'OheroEventLakeStack',
     "auto-delete": "no"
   },
   env: {
@@ -129,16 +104,16 @@ const opsEventLakeStack = new OpsEventLakeStack(app, 'AiOpsEventLakeStack', {
     region: process.env.CDK_PROCESSING_REGION,
   },
   opsEventBucketArn: statefulStack.opsEventLakeBucket.bucketArn,
-  aiOpsEventBus: statefulStack.aiOpsEventBus,
+  oheroEventBus: statefulStack.oheroEventBus,
   healthEventDomains: healthEventDomains,
   sechubEventDomains: sechubEventDomains
 });
 
-const opsHealthAgentStack = new OpsHealthAgentStack(app, 'AiOpsHealthAgentStack', {
-  stackName: `AiOpsHealthAgentStack`,
+const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OheroHealthAgentStack', {
+  stackName: `OheroHealthAgentStack`,
   tags: {
     env: 'prod',
-    "ManagedBy": 'AiOpsHealthAgentStack',
+    "ManagedBy": 'OheroHealthAgentStack',
     "auto-delete": "no"
 
   },
@@ -153,11 +128,11 @@ const opsHealthAgentStack = new OpsHealthAgentStack(app, 'AiOpsHealthAgentStack'
   slackAccessToken: process.env.SLACK_ACCESS_TOKEN as string,
   eventManagementTableName: statefulStack.eventManagementTable.tableName,
   ticketManagementTableName: statefulStack.ticketManagementTable.tableName,
-  aiOpsEventBus: statefulStack.aiOpsEventBus,
+  oheroEventBus: statefulStack.oheroEventBus,
   sourceEventDomains: sourceEventDomains,
   appEventDomainPrefix: appEventDomainPrefix,
   slackMeFunction: opsOrchestrationStack.slackMeFunction,
   guardrailArn: statefulStack.bedrockGuardrail.attrGuardrailArn,
-  mockupSlackChannelId: process.env.MOCKUP_SLACK_CHANNEL_ID as string
+  teamManagementTableName: statefulStack.teamManagementTable.tableName,
 });
 

@@ -106,7 +106,7 @@
                     },
                     "assignee": {
                         "type": "string",
-                        "description": "Person or team assigned to the ticket"
+                        "description": "Team ID of the team assigned to the ticket"
                     },
                     "progress": {
                         "type": "string",
