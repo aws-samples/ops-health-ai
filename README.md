@@ -24,6 +24,7 @@ High-level interactions between solution elements
 <img src="./screenshots/solution-diagram.png"
   alt="High-level interactions between solution elements">
 </p>
+
 ## Screenshots of Usage
 
 ### Automated event notification, autonomous event acknowledgement and action triage by a virtual supervisor/operator that follows MyCompany policies. The virtual operator is equipped with multiple AI capabilities, each of which is specialized in a knowledge domain to assist, such as generating recommended actions, taking actions to create issue tickets in ITSM tools.
