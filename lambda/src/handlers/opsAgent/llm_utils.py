@@ -78,7 +78,7 @@ def search_ops_events(query):
             },
             retrievalConfiguration={
                 'vectorSearchConfiguration': {
-                    'numberOfResults': 50,
+                    'numberOfResults': 25,
                     'overrideSearchType': "SEMANTIC",
                     # ---- the below config improves relevance of retrieved but requires botocore>=1.34.71 ----
                     # 'implicitFilterConfiguration': {
@@ -128,7 +128,7 @@ def search_sec_findings(query):
             },
             retrievalConfiguration={
                 'vectorSearchConfiguration': {
-                    'numberOfResults': 50
+                    'numberOfResults': 25
                 }
             }
         )
@@ -187,7 +187,7 @@ def ask_aws_advice(query):
                     'modelArn': aws_llm_arn,
                     'retrievalConfiguration': {
                         'vectorSearchConfiguration': {
-                            'numberOfResults': 100
+                            'numberOfResults': 50
                         }
                     },
                     'generationConfiguration': {
@@ -851,22 +851,22 @@ def generate_knowledge_metadata(summary):
 - "timeOfEvent": the start time of the event in ISO format
 
 Summary: {summary[:450000]}"""
-    
+
     try:
         metadata_response = bedrock_runtime.converse(
             modelId=AMAZON_NOVA_MICRO_MODEL_ID,
             messages=[{"role": "user", "content": [{"text": metadata_prompt}]}],
             inferenceConfig={"temperature": 0.0, "maxTokens": 1000}
         )
-        
+
         metadata_text = metadata_response['output']['message']['content'][0]['text']
         print(f"Auto-generated metadata for knowledge: {metadata_text}")
-        
+
         # Extract JSON using regex
         json_match = re.search(r'\{.*\}', metadata_text, re.DOTALL)
         if not json_match:
             raise ValueError("No JSON found in response")
-        
+
         return json.dumps({
             "metadataAttributes": json.loads(json_match.group())
         })

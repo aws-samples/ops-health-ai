@@ -7,6 +7,7 @@
 - Old version archived to 'legacy' branch
 
 ## Expecting soon (to-do list)
+- User reported operational event as a source
 - Sample integration with Jira in addition to just a mockup issue ticket database
 - Additional integration with other operational event sources such as Cost Anomaly Detection, CloudWatch alarms
 - Event buffering
