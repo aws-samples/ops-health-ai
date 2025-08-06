@@ -15,26 +15,29 @@ Resources:
     Properties:
       CodeUri: handlers/opsAgent/
       Handler: app.lambda_handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 120
       MemorySize: 128
       Environment:
         Variables:
-          MEM_BUCKET: ""
-          OPS_KNOWLEDGE_BASE_ID: ""
-          SECHUB_KNOWLEDGE_BASE_ID: ""
-          AWS_KB_ID: ""
-          TICKET_TABLE: ""
-          EVENT_SOURCE_NAME: ""
-          BEDROCK_GUARDRAIL_ID: ""
-          BEDROCK_GUARDRAIL_VER: ""
+          AWS_KB_ID: "string"
+          BEDROCK_GUARDRAIL_ID: "string"
+          BEDROCK_GUARDRAIL_VER: "string"
+          EVENT_BUS_NAME: "string"
+          EVENT_SOURCE_NAME: "string"
+          KNOWLEDGE_BUCKET: "string"
+          MEM_BUCKET: "string"
+          OPS_KNOWLEDGE_BASE_ID: "string"
+          SECHUB_KNOWLEDGE_BASE_ID: "string"
+          TEAM_TABLE: "string"
+          TICKET_TABLE: "string"
 
   SlackMeFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: handlers/slackMe/
       Handler: app.lambda_handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 120
       MemorySize: 128
       Environment:
@@ -47,7 +50,19 @@ Resources:
     Properties:
       CodeUri: handlers/secHubReport/
       Handler: app.lambda_handler
-      Runtime: python3.11
+      Runtime: python3.12
+      Timeout: 120
+      MemorySize: 128
+      Environment:
+        Variables:
+          S3_NAME: ""
+
+  SaveAccountInfoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/saveAccountInfo/
+      Handler: app.lambda_handler
+      Runtime: python3.12
       Timeout: 120
       MemorySize: 128
       Environment:

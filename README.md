@@ -1,17 +1,26 @@
 # Operational Health Event Resolution Orchestrator - OHERO
-[Original blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
+**Boost productivity by using AI in cloud operational health management** - [Link to blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
 ## Change log since post
 - Auditable agent action report stored to S3 bucket
 - Optimization of Agent long term memory and knowledge retrieval
-- Modernized underlying LLMs to use Amazon Nova and Claud 3.5 Haiku
+- Modernized underlying LLMs to use Amazon Nova and Claud 3.7 Sonnet
+- User reported operational event as a source
+- Support of prompt caching
 - Old version archived to 'legacy' branch
 
 ## Expecting soon (to-do list)
-- User reported operational event as a source
 - Sample integration with Jira in addition to just a mockup issue ticket database
 - Additional integration with other operational event sources such as Cost Anomaly Detection, CloudWatch alarms
 - Event buffering
   
+## Key Features
+- **Autonomous Event Processing**: AI-powered virtual operator automatically acknowledges, triages, and creates tickets for AWS Health and Security Hub events following customizable policies
+- **Intelligent Noise Filtering**: Filters operational events based on severity, impact, and organizational policies to reduce alert fatigue
+- **Multi-Source Integration**: Processes events from AWS Health, Security Hub, and user-reported incidents with unified workflow
+- **Expert Knowledge Access**: Leverages AWS and or customer documentation knowledge base and historical event data for contextual understanding
+- **Auditable Actions**: All AI decisions and actions are logged to S3 with full traceability and compliance reporting
+- **Modern AI Stack**: Powered by Amazon Nova and Claude 3.7 Sonnet with prompt caching for optimized performance
+
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
 - Enable AWS Health Organization view and delegate an administrator account in your AWS management account if you want to manage AWS Health events across your entire AWS Organization. This is optional if you only need to handle events from a single account.
@@ -19,38 +28,35 @@
 - Configure a Slack app and set up a channel with appropriate permissions and event subscriptions to send/receive messages to/from backend microservices.
 - AWS CDK installed in your development environment for stack deployment
 - AWS SAM (Serverless Application Model) and Docker installed in your development environment to build Lambda packages
-  
-## How does the solution work
-High-level interactions between solution elements
-<img src="./screenshots/solution-diagram.png"
-  alt="High-level interactions between solution elements">
-</p>
+
+## The OheroACT Framework
+The OheroACT Framework is a set of customizable guidelines and rules that govern how the AI assistant operates within the context of operational health management. It consists of three main stages: Acknowledge, Consult, and Triage. Each stage has its own set of rules, permitted actions, and output formats.
+
+### OheroACT High-level Flow
+```mermaid
+flowchart TD
+    Start([User Query]) --> CheckState{Check: Query is asking to handle or report an operational event?}
+    CheckState -->|No| Consult[Action: execute Consult]
+    CheckState -->|Yes| Acknowledge[Action: execute Acknowledge]
+    
+    Consult --> End([End])
+    Acknowledge --> CheckPhase{Check: proceed to Triage?}
+    
+    CheckPhase -->|Yes| Triage[Action: execute Triage]
+    CheckPhase -->|No| FinalResponse[Action: Stop and Respond to user]
+    
+    Triage --> SynthesizeFinal[Action: synthesize final response]
+    
+    FinalResponse --> SynthesizeFinal
+    
+    SynthesizeFinal --> End
+```
+
 
 ## Screenshots of Usage
-
-### Automated event notification, autonomous event acknowledgement and action triage by a virtual supervisor/operator that follows MyCompany policies. The virtual operator is equipped with multiple AI capabilities, each of which is specialized in a knowledge domain to assist, such as generating recommended actions, taking actions to create issue tickets in ITSM tools.
+### OHERO can run headless and autonomously without user interfaces, Slack is used to visualize the interactions.
 <img src="./screenshots/screenshot1.png"
   alt="Usage scrrenshot1 by seanxw">
-</p>
-
-### The virtual event supervisor/operator filters out 'noise' based on MyCompany's policies.
-<img src="./screenshots/screenshot2.png"
-  alt="Usage screenshot2 by seanxw">
-</p>
-
-### AI can identify the issue tickets related to an AWS Health event and provide the latest status updates on those tickets.
-<img src="./screenshots/screenshot3.png"
-  alt="Usage screenshot3 by seanxw">
-</p>
-
-### An illustration of how the assistant can provide valuable insights from complex thread of operational events.
-<img src="./screenshots/screenshot4.png"
-  alt="Usage screenshot4 by seanxw">
-</p>
-
-### A more sophisticated use case
-<img src="./screenshots/screenshot5.png"
-  alt="Usage screenshot5 by seanxw">
 </p>
 
 ## Architecture

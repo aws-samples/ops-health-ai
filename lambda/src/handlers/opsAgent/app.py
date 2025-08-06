@@ -1,6 +1,6 @@
 import time, boto3, os
 import llm_utils
-from agent_ops import AgentOps
+from agent import Agent
 import json, uuid
 
 s3 = boto3.client('s3')
@@ -8,6 +8,7 @@ transient_payload_bucket = os.environ['MEM_BUCKET']
 
 def lambda_handler(event, context):
     context.log("Incoming Event : " + json.dumps(event) + "\n")
+    ask_user_question_allowed = True if event.get("detail-type") == "Chat.SlackMessageReceived" else False
     prompt = event["detail"]["event"]["text"]
     payload_s3_key = event["detail"]["event"].get("payloadS3Key", None)
     if payload_s3_key:
@@ -33,16 +34,17 @@ def lambda_handler(event, context):
         tools["update_ticket"],
         tools["search_tickets_by_event_key"]
         ]
-    agent = AgentOps(
+    agent = Agent(
         session=session_id if session_id else None,
         tools=selected_tools,
-        reasoning_budget=4096
+        reasoning_budget=4096,
+        conversational=ask_user_question_allowed
     )
 
     # Run research on a topic
     research_results = agent.plan_and_act(
         prompt,
-        max_steps=6
+        max_steps=8
     )
 
     # print('RAW RESPONSE', json.dumps(research_results, indent=2))
@@ -57,5 +59,5 @@ def lambda_handler(event, context):
         "SessionId": session_id,
         "ExpiresAt": str(session_expires_at)
     }
-    print('AGENT RESULT:', json.dumps(result, indent=2))
+
     return result

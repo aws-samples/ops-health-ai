@@ -61,6 +61,13 @@ export class OpsOrchestrationStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // Create execution log group explicitly to ensure cleanup
+    const executionLogGroup = new logs.LogGroup(this, "ApiGatewayExecutionLogs", {
+      logGroupName: `/aws/apigateway/execution-logs`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     this.restApi = new apigw.RestApi(this, 'OheroRestEndpoints', {
       restApiName: `${cdk.Stack.of(this).stackName}-oheroApi`,
       description: `${cdk.Stack.of(this).stackName} Rest API Gateway`,

@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import copy
 import uuid
 from datetime import datetime
 from boto3 import client
@@ -21,8 +22,8 @@ message_event_source_name = os.environ.get('EVENT_SOURCE_NAME')
 bedrock_guardrail_id = os.environ.get('BEDROCK_GUARDRAIL_ID')
 bedrock_guardrail_ver = os.environ.get('BEDROCK_GUARDRAIL_VER')
 
-CLAUDE_35_SONNET_MODEL_ID = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
 CLAUDE_37_SONNET_MODEL_ID = 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
+# CLAUDE_37_SONNET_MODEL_ID = 'anthropic.claude-3-7-sonnet-20250219-v1:0' # some region may not support cross-region inference, use this instead
 CLAUDE_35_HAIKU_MODEL_ID = 'us.anthropic.claude-3-5-haiku-20241022-v1:0'
 # CLAUDE_35_HAIKU_MODEL_ID = 'anthropic.claude-3-5-haiku-20241022-v1:0' # some region may not support cross-region inference, use this instead
 CLAUDE_3_HAIKU_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0'
@@ -234,7 +235,10 @@ def acknowledge_event(callback_token, action_taken, reason_for_action=None):
     Handle Step Functions task response based on operator action.
 
     """
-
+    if not callback_token:
+        return {
+            "acknowledge_event": "success"
+        }
     try:
         if not callback_token or not action_taken:
             return {
@@ -243,25 +247,18 @@ def acknowledge_event(callback_token, action_taken, reason_for_action=None):
                 }
             }
 
-        # Sanitize input values
-        # Remove leading and trailing quotes
-        action_taken = re.sub(r"^\'|\'$", "", action_taken)
-        callback_token = re.sub(r"^\'|\'$", "", callback_token)
-        # Remove CDATA tags
-        callback_token = re.sub(r"^\<\!\[CDATA\[|\]\]$", "", callback_token)
-
-        # # ====== Testing mockup response ====
+        # ====== Testing mockup response ====
         # if action_taken == 'accept':
         #     return {
-        #         'acknowledge_event': 'Acknowledged with acceptance to further triage.'
+        #         'acknowledge_event': 'Acknowledged as accepted'
         #     }
         # else:
         #     return {
-        #         'acknowledge_event': 'Acknowledged with no further triage.'
+        #         'acknowledge_event': 'Acknowledged as discharged'
         #     }
-        # # ==== Mockup response ends here ====
+        # ==== Mockup response ends here ====
 
-        print(f"Debug token after sanitization: {callback_token}")
+        print(f"Debug callbackToken: {callback_token}")
         print(f"Debug action value: {action_taken}")
 
         if action_taken == 'accept':
@@ -273,7 +270,7 @@ def acknowledge_event(callback_token, action_taken, reason_for_action=None):
                 })
             )
             print('Accepted by operator')
-            body = 'Acknowledged with acceptance to further triage.'
+            body = 'Acknowledged as accepted'
         else:
             # Send task failure
             response = sfn.send_task_failure(
@@ -282,7 +279,7 @@ def acknowledge_event(callback_token, action_taken, reason_for_action=None):
                 cause='Discharged by operator' if not reason_for_action else reason_for_action
             )
             print('Discharged by operator')
-            body = 'Acknowledged with no further triage.'
+            body = 'Acknowledged as discharged'
 
         return {
             'acknowledge_event': body
@@ -291,7 +288,7 @@ def acknowledge_event(callback_token, action_taken, reason_for_action=None):
         print(f"Error handling task response: {str(e)}")
         return {
             "acknowledge_event": {
-                'ExecutionError': "Acknowledgement failed, please verify if the callback token you used is exactly correct and try again."
+                'ExecutionError': "Acknowledgement failed, please verify if the callback token you used is correct."
                 # 'ExecutionError': json.dumps({'error': str(e)})
             }
         }
@@ -679,19 +676,16 @@ def summarize_pna(agent_id, results):
 
     return summary
 
-def invoke_claude_with_tools(prompt, system_prompt, tools, max_tokens=4096):
-    # Create messages
-    messages = [
-        {
-            "role": "user",
-            "content": [{"text": prompt}]
-        }
-    ]
+def invoke_claude_with_cache(messages, system_prompt, tools, cache=False, max_tokens=4096):
+    # Create cache check point
+    messages_with_cache = copy.deepcopy(messages)
+    if cache:
+        messages_with_cache[-1]["content"].append({"cachePoint": {"type": "default"}})
 
     # Base request parameters
     request_params = {
-        "modelId": CLAUDE_35_HAIKU_MODEL_ID,
-        "messages": messages,
+        "modelId": CLAUDE_37_SONNET_MODEL_ID,
+        "messages": messages_with_cache,
         "system": system_prompt,
         "inferenceConfig": {
             "temperature": 0.0,
@@ -729,7 +723,6 @@ def invoke_claude_with_tools(prompt, system_prompt, tools, max_tokens=4096):
     response["_elapsed_time"] = elapsed_time
 
     # Debug: print the raw response structure to help diagnose parsing issues
-    # print("User prompt:", prompt)
     print("Response structure:")
     print(f"Keys in response: {list(response.keys())}")
     if 'output' in response:
@@ -874,7 +867,7 @@ Summary: {summary[:450000]}"""
         print(f"Generating knowledge metadata failed: {str(e)}")
         return None
 
-def display_claude_tool_response(response):
+def handle_claude_tool_response(response):
     """
     Display Claude's response with detailed tool calls and results
     """
@@ -883,6 +876,8 @@ def display_claude_tool_response(response):
     input_tokens = response.get('usage', {}).get('inputTokens', 0)
     output_tokens = response.get('usage', {}).get('outputTokens', 0)
     total_tokens = response.get('usage', {}).get('totalTokens', 0)
+    cached_read_tokens = response.get('usage', {}).get("cacheReadInputTokens", 0)
+    cached_write_tokens = response.get('usage', {}).get("cacheWriteInputTokens", 0)
 
     input_cost = input_tokens * 0.0000008  # $$0.0008 per 1000 tokens https://aws.amazon.com/bedrock/pricing/
     output_cost = output_tokens * 0.0000025  # $0.0025 per 1000 tokens https://aws.amazon.com/bedrock/pricing/
@@ -890,6 +885,7 @@ def display_claude_tool_response(response):
 
     # Display metrics
     print(f"### Response (in {elapsed_time:.2f} seconds)")
+    print(f"**CachedTokens**: {cached_read_tokens:,} read, {cached_write_tokens:,} write")
     print(f"**Tokens**: {total_tokens:,} total ({input_tokens:,} input, {output_tokens:,} output)")
     print(f"**Estimated cost (assuming Claude 3.5 Haiku)**: ${total_cost:.5f}")
 
@@ -983,10 +979,11 @@ def display_claude_tool_response(response):
         # Print more details about the response structure to help diagnose issues
         if 'output' in response and 'message' in response['output']:
             message_keys = list(response['output']['message'].keys())
-            print(f"Message keys available: {message_keys}")
+            print(f"Message keys in LLM response: {message_keys}")
 
     return {
         "text_response": result_text,
+        "tool_uses": tool_uses,
         "tool_calls": tool_calls,
         "tool_responses": tool_responses
     }

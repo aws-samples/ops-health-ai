@@ -163,7 +163,7 @@
           "Next": "PutSecHubEventItem"
         }
       ],
-      "Default": "SecEventUpdate-ToDo"
+      "Default": "OtherEventUpdate-ToDo"
     },
     "PutSecHubEventItem": {
       "Type": "Task",
@@ -376,7 +376,7 @@
       "TimeoutSeconds": 3000,
       "End": true
     },
-    "SecEventUpdate-ToDo": {
+    "OtherEventUpdate-ToDo": {
       "Type": "Pass",
       "Next": "Finished"
     },
