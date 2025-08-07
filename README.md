@@ -1,5 +1,14 @@
 # Operational Health Event Resolution Orchestrator - OHERO
 **Boost productivity by using AI in cloud operational health management** - [Link to blog post](https://aws.amazon.com/blogs/machine-learning/boost-productivity-by-using-ai-in-cloud-operational-health-management/)
+
+## Key Features
+- **Autonomous Event Processing**: AI-powered virtual operator automatically acknowledges, triages, and creates tickets for AWS Health and Security Hub events following customizable policies
+- **Intelligent Noise Filtering**: Filters operational events based on severity, impact, and organizational policies to reduce alert fatigue
+- **Multi-Source Integration**: Processes events from AWS Health, Security Hub, and user-reported incidents with unified workflow
+- **Expert Knowledge Access**: Leverages AWS and or customer documentation knowledge base and historical event data for contextual understanding
+- **Auditable Actions**: All AI decisions and actions are logged to S3 with full traceability and compliance reporting
+- **Modern AI Stack**: Powered by Amazon Nova and Claude 3.7 Sonnet with prompt caching for optimized performance
+
 ## Change log since post
 - Auditable agent action report stored to S3 bucket
 - Optimization of Agent long term memory and knowledge retrieval
@@ -12,14 +21,6 @@
 - Sample integration with Jira in addition to just a mockup issue ticket database
 - Additional integration with other operational event sources such as Cost Anomaly Detection, CloudWatch alarms
 - Event buffering
-  
-## Key Features
-- **Autonomous Event Processing**: AI-powered virtual operator automatically acknowledges, triages, and creates tickets for AWS Health and Security Hub events following customizable policies
-- **Intelligent Noise Filtering**: Filters operational events based on severity, impact, and organizational policies to reduce alert fatigue
-- **Multi-Source Integration**: Processes events from AWS Health, Security Hub, and user-reported incidents with unified workflow
-- **Expert Knowledge Access**: Leverages AWS and or customer documentation knowledge base and historical event data for contextual understanding
-- **Auditable Actions**: All AI decisions and actions are logged to S3 with full traceability and compliance reporting
-- **Modern AI Stack**: Powered by Amazon Nova and Claude 3.7 Sonnet with prompt caching for optimized performance
 
 ## Prerequisites
 - At least 1 AWS account with appropriate permissions. The project uses a typical setup of 2 accounts whereas 1 is the organization health administration account and the other is the worker account hosting backend microservices. The worker account can be the same as the administration account if single account setup is chosen. 
