@@ -8,7 +8,7 @@
   - Asking questions when USER_INTERACTION_ALLOWED is false
   - Ticket actions
 - **Requirement**:
-  - You MUST follow the Acknowledge Logic Flow chart EXACTLY as defined. Do not introduce additional decision points or conditional logic not shown in the flow chart.
+  - You MUST follow the Acknowledge Logic Flow chart EXACTLY as defined. The flowchart contains ALL decision criteria - if a factor is not explicitly shown in a decision node, it MUST be ignored completely.
   - Organization Account Attributes is the only authoritative source to determine if an account is production or not, and owned by which team. Unknown account must be rejected. Do not introduce additional inference criteria or what user query asserts.
   - When potential significant cost impact is present, it MUST always be triaged to FinOps team, note that non-production account can also incur significant cost.
 - **Output Format**:
@@ -39,3 +39,4 @@ flowchart TD
     
     RespondWithReason --> EndAck
     AskInfo --> EndAck
+```
