@@ -114,34 +114,27 @@
           }
         }
       },
-      "Next": "SlackMe",
+      "Next": "EmitOpsAgentResponded",
       "ResultPath": "$.GetEventItem"
     },
-    "SlackMe": {
+    "EmitOpsAgentResponded": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "OutputPath": "$.Payload",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "FunctionName": "${SlackMeFunctionNamePlaceholder}",
-        "Payload": {
-          "text.$": "States.Format('OpsAgent reasoning: {}', $.InvokeOpsAgent.Payload.Output.Text)",
-          "threadTs.$": "$.GetEventItem.Item.SlackThread"
-        }
+        "Entries": [
+          {
+            "Detail": {
+              "CarryingPayload.$": "$.detail.CarryingPayload",
+              "AiResponseText.$": "$.InvokeOpsAgent.Payload.Output.Text",
+              "SlackThread.$": "$.GetEventItem.Item.SlackThread",
+              "EventPK.$": "$.detail.CarryingPayload.DefineEventPK.EventPK"
+            },
+            "DetailType": "OpsAgent.Responded",
+            "EventBusName": "${AppEventBusPlaceholder}",
+            "Source": "${AppEventDomainPrefixPlaceholder}.ai-integration"
+          }
+        ]
       },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException",
-            "Lambda.SlackApiError"
-          ],
-          "IntervalSeconds": 1,
-          "MaxAttempts": 5,
-          "BackoffRate": 2
-        }
-      ],
       "Next": "Finished"
     },
     "Finished": {

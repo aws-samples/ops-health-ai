@@ -54,7 +54,7 @@
           "Text.$": "$.detail.event.text"
         }
       },
-      "Next": "SlackBack",
+      "Next": "MessageBack",
       "ResultPath": "$.BedrockAgentResponse"
     },
     "PassChatMessageTimeStamp": {
@@ -235,65 +235,47 @@
         {
           "Variable": "$.BedrockAgentResponse.Output.Text",
           "IsPresent": true,
-          "Next": "SlackBack"
+          "Next": "MessageBack"
         }
       ],
       "Default": "IDontKnow"
     },
     "IDontKnow": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "OutputPath": "$.Payload",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "FunctionName": "${SlackMeFunctionNamePlaceholder}",
-        "Payload": {
-          "channel.$": "$.detail.event.channel",
-          "text": "Sorry, I don't have the knowledge needed to assist with this request. Is the knowledge base empty?",
-          "threadTs.$": "$.detail.event.ts"
-        }
+        "Entries": [
+          {
+            "Detail": {
+              "AiResponseText": "Sorry, I don't have the knowledge needed to assist with this request. Is the knowledge base empty?",
+              "SlackChannel.$": "$.detail.event.channel",
+              "SlackThread.$": "$.detail.event.ts"
+            },
+            "DetailType": "OpsAgent.Responded",
+            "EventBusName": "${AppEventBusPlaceholder}",
+            "Source": "${AppEventDomainPrefixPlaceholder}.ai-chat"
+          }
+        ]
       },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException",
-            "Lambda.SlackApiError"
-          ],
-          "IntervalSeconds": 1,
-          "MaxAttempts": 5,
-          "BackoffRate": 2
-        }
-      ],
       "Next": "Finished"
     },
-    "SlackBack": {
+    "MessageBack": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "OutputPath": "$.Payload",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "FunctionName": "${SlackMeFunctionNamePlaceholder}",
-        "Payload": {
-          "channel.$": "$.detail.event.channel",
-          "text.$": "$.BedrockAgentResponse.Output.Text",
-          "threadTs.$": "$.detail.event.ts"
-        }
+        "Entries": [
+          {
+            "Detail": {
+              "AiResponseText.$": "$.BedrockAgentResponse.Output.Text",
+              "SlackChannel.$": "$.detail.event.channel",
+              "SlackThread.$": "$.detail.event.ts"
+            },
+            "DetailType": "OpsAgent.Responded",
+            "EventBusName": "${AppEventBusPlaceholder}",
+            "Source": "${AppEventDomainPrefixPlaceholder}.ai-chat"
+          }
+        ]
       },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException",
-            "Lambda.SlackApiError"
-          ],
-          "IntervalSeconds": 1,
-          "MaxAttempts": 5,
-          "BackoffRate": 2
-        }
-      ],
       "Next": "Finished"
     },
     "Finished": {

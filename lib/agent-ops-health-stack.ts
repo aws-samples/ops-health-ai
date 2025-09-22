@@ -26,7 +26,6 @@ export interface OpsHealthAgentProps extends cdk.StackProps {
   oheroEventBus: events.IEventBus
   sourceEventDomains: string[]
   appEventDomainPrefix: string
-  slackMeFunction: lambda.IFunction
   guardrailArn: string
   teamManagementTableName: string
   // mockupSlackChannelId: string
@@ -285,7 +284,8 @@ export class OpsHealthAgentStack extends cdk.Stack {
       definitionSubstitutions: {
         "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
-        "SlackMeFunctionNamePlaceholder": props.slackMeFunction.functionName
+        "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
+        "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix
       },
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,
@@ -347,10 +347,11 @@ export class OpsHealthAgentStack extends cdk.Stack {
       definitionSubstitutions: {
         "OpsHealthKnowledgeBaseIdPlaceHolder": opsHealthKnowledgeBase.knowledgeBaseId,
         "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
-        "SlackMeFunctionNamePlaceholder": props.slackMeFunction.functionName,
         "SlackChannelIdPlaceholder": props.slackChannelId,
         "ChatUserSessionsTableNamePlaceholder": chatUserSessionsTable.tableName,
         "LlmModelArnPlaceholder": `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
+        "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
+        "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix
       },
       tracingEnabled: false,
       stateMachineType: sfn.StateMachineType.STANDARD,

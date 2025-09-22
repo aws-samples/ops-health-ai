@@ -25,7 +25,6 @@ export interface OpsOrchestrationStackProps extends cdk.StackProps {
 
 export class OpsOrchestrationStack extends cdk.Stack {
   public readonly restApi: apigw.RestApi
-  public readonly slackMeFunction: lambda.Function
 
   constructor(scope: Construct, id: string, props: OpsOrchestrationStackProps) {
     super(scope, id, props);
@@ -157,7 +156,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     // -------------------------------------------------------
 
     // ------------------- SlackMe function ---------------------
-    this.slackMeFunction = new lambda.Function(this, 'SlackMe', {
+    const slackMeFunction = new lambda.Function(this, 'SlackMe', {
       runtime: lambda.Runtime.PYTHON_3_11,
       code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/SlackMeFunction'),
       handler: 'app.lambda_handler',
@@ -174,7 +173,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
     });
 
     new logs.LogGroup(this, 'SlackMeLogGroup', {
-      logGroupName: `/aws/lambda/${this.slackMeFunction.functionName}`,
+      logGroupName: `/aws/lambda/${slackMeFunction.functionName}`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -280,7 +279,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
         "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
         "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix,
-        "SlackMeFunctionNamePlaceholder": this.slackMeFunction.functionName,
+        "SlackMeFunctionNamePlaceholder": slackMeFunction.functionName,
         "EventCallbackUrlPlaceholder": `${this.restApi.url}event-callback`,
         "SlackChannelIdPlaceholder": props.slackChannelId
       },
@@ -298,7 +297,11 @@ export class OpsOrchestrationStack extends cdk.Stack {
     const notificationRule = new events.Rule(this, 'OheroNotificationRule', {
       eventBus: props.oheroEventBus,
       eventPattern: {
-        source: [`${props.appEventDomainPrefix}.ops-orchestration`]
+        source: [
+          `${props.appEventDomainPrefix}.ops-orchestration`,
+          `${props.appEventDomainPrefix}.ai-integration`,
+          `${props.appEventDomainPrefix}.ai-chat`
+        ]
       },
       ruleName: 'OpsNotificationRule',
       description: 'Subscription by Ohero notification service.',

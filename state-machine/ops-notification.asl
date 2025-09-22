@@ -24,6 +24,11 @@
           "Variable": "$['detail-type']",
           "StringEquals": "Health.EventUpdated",
           "Next": "SlackMeHealthEventUpdate"
+        },
+        {
+          "Variable": "$['detail-type']",
+          "StringEquals": "OpsAgent.Responded",
+          "Next": "CheckSlackChannelPresent"
         }
       ],
       "Default": "Finished"
@@ -448,6 +453,70 @@
           }
         ]
       },
+      "Next": "Finished"
+    },
+    "CheckSlackChannelPresent": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.detail.SlackChannel",
+          "IsPresent": true,
+          "Next": "SlackMeOpsAgentResponseWithChannel"
+        }
+      ],
+      "Default": "SlackMeOpsAgentResponseNoChannel"
+    },
+    "SlackMeOpsAgentResponseWithChannel": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${SlackMeFunctionNamePlaceholder}",
+        "Payload": {
+          "text.$": "$.detail.AiResponseText",
+          "threadTs.$": "$.detail.SlackThread",
+          "channel.$": "$.detail.SlackChannel"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "Lambda.SlackApiError"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 5,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Finished"
+    },
+    "SlackMeOpsAgentResponseNoChannel": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${SlackMeFunctionNamePlaceholder}",
+        "Payload": {
+          "text.$": "$.detail.AiResponseText",
+          "threadTs.$": "$.detail.SlackThread"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "Lambda.SlackApiError"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 5,
+          "BackoffRate": 2
+        }
+      ],
       "Next": "Finished"
     },
     "Finished": {
