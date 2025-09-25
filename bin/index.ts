@@ -89,7 +89,10 @@ const opsOrchestrationStack = new OpsOrchestrationStack(app, 'OheroOrchestration
   oheroEventBus: statefulStack.oheroEventBus,
   healthEventDomains: healthEventDomains,
   sechubEventDomains: sechubEventDomains,
-  appEventDomainPrefix: appEventDomainPrefix
+  appEventDomainPrefix: appEventDomainPrefix,
+  webChatApiKey: process.env.WEB_CHAT_API_KEY,
+  webSocketConnectionsTableName: statefulStack.webSocketConnectionsTable.tableName,
+  notificationChannel: (process.env.NOTIFICATION_CHANNEL as 'slack' | 'webchat') || 'slack'
 });
 
 const opsEventLakeStack = new OpsEventLakeStack(app, 'OheroEventLakeStack', {

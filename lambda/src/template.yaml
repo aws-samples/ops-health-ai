@@ -45,6 +45,44 @@ Resources:
           SLACK_ACCESS_TOKEN: 'string'
           SLACK_CHANNEL_ID: 'string'
 
+  WebChatMeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/webChatMe/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Timeout: 120
+      MemorySize: 128
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: 'string'
+          WEBSOCKET_API_ENDPOINT: 'string'
+
+  HandleWebChatCommFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: handlers/handleWebChatComm/
+      Handler: app.lambdaHandler
+      Runtime: nodejs20.x
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: 'string'
+          EVENT_DOMAIN_PREFIX: 'string'
+          INTEGRATION_EVENT_BUS_NAME: 'string'
+          PAYLOAD_BUCKET: 'string'
+          WEB_CHAT_API_KEY: 'string'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+        - app.ts
+
   SecHubReportFunction:
     Type: AWS::Serverless::Function
     Properties:

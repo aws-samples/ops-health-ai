@@ -4,6 +4,8 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as events from "aws-cdk-lib/aws-events";
 import * as evtTargets from "aws-cdk-lib/aws-events-targets";
 import * as apigw from 'aws-cdk-lib/aws-apigateway';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import * as apigwv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -21,10 +23,14 @@ export interface OpsOrchestrationStackProps extends cdk.StackProps {
   healthEventDomains: string[],
   sechubEventDomains: string[],
   appEventDomainPrefix: string
+  webChatApiKey?: string
+  webSocketConnectionsTableName: string
+  notificationChannel: 'slack' | 'webchat'
 }
 
 export class OpsOrchestrationStack extends cdk.Stack {
   public readonly restApi: apigw.RestApi
+  public readonly webSocketApi: apigwv2.WebSocketApi
 
   constructor(scope: Construct, id: string, props: OpsOrchestrationStackProps) {
     super(scope, id, props);
@@ -96,6 +102,30 @@ export class OpsOrchestrationStack extends cdk.Stack {
     });
     /******************************************************************************* */
 
+    /***************** WebSocket API for web chat ******* */
+    // Create WebSocket API log group
+    const webSocketLogGroup = new logs.LogGroup(this, "WebSocketApiAccessLogs", {
+      logGroupName: `/aws/vendedlogs/apigateway/OheroWebSocketApiLogs`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Create WebSocket API
+    this.webSocketApi = new apigwv2.WebSocketApi(this, 'OheroWebSocketApi', {
+      apiName: `${cdk.Stack.of(this).stackName}-webSocketApi`,
+      description: `${cdk.Stack.of(this).stackName} WebSocket API for web chat`,
+      // Routes will be added after function creation
+    });
+
+    // Create WebSocket API stage
+    const webSocketStage = new apigwv2.WebSocketStage(this, 'OheroWebSocketStage', {
+      webSocketApi: this.webSocketApi,
+      stageName: 'prod',
+      autoDeploy: true,
+    });
+
+    // Routes will be configured after function creation
+    /******************************************************************************* */
 
     const lambdaExecutionRole = new iam.Role(this, 'OheroLambdaRole', {
       roleName: 'OheroLambdaRole',
@@ -116,7 +146,13 @@ export class OpsOrchestrationStack extends cdk.Stack {
         "s3:ListMultipartUploadParts",
         "s3:PutObject",
         "states:SendTaskSuccess",
-        "states:SendTaskFailure"
+        "states:SendTaskFailure",
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Scan",
+        "dynamodb:Query"
       ],
       resources: ['*']
     }));
@@ -179,6 +215,117 @@ export class OpsOrchestrationStack extends cdk.Stack {
     });
 
     // -------------------------------------------------------
+
+    // ------------------- WebChatMe function ---------------------
+    const webChatMeFunction = new lambda.Function(this, 'WebChatMe', {
+      runtime: lambda.Runtime.PYTHON_3_12,
+      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/WebChatMeFunction'),
+      handler: 'app.lambda_handler',
+      timeout: cdk.Duration.seconds(5),
+      memorySize: 128,
+      architecture: lambda.Architecture.ARM_64,
+      reservedConcurrentExecutions: 10,
+      role: lambdaExecutionRole,
+      tracing: lambda.Tracing.DISABLED,
+      environment: {
+        CONNECTIONS_TABLE_NAME: props.webSocketConnectionsTableName,
+        // WEBSOCKET_API_ENDPOINT will be set below after WebSocket API creation
+      },
+    });
+
+    new logs.LogGroup(this, 'WebChatMeLogGroup', {
+      logGroupName: `/aws/lambda/${webChatMeFunction.functionName}`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // -------------------------------------------------------
+
+    // ------------------- HandleWebChatComm function ---------------------
+    const handleWebChatCommFunction = new lambda.Function(this, 'HandleWebChatComm', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/HandleWebChatCommFunction'),
+      handler: 'app.lambdaHandler',
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      architecture: lambda.Architecture.ARM_64,
+      reservedConcurrentExecutions: 5,
+      role: lambdaExecutionRole,
+      tracing: lambda.Tracing.DISABLED,
+      environment: {
+        CONNECTIONS_TABLE_NAME: props.webSocketConnectionsTableName,
+        EVENT_DOMAIN_PREFIX: props.appEventDomainPrefix,
+        INTEGRATION_EVENT_BUS_NAME: props.oheroEventBus.eventBusName,
+        PAYLOAD_BUCKET: props.transientPayloadsBucketName,
+        WEB_CHAT_API_KEY: props.webChatApiKey || '', // API key for authentication
+      },
+    });
+
+    new logs.LogGroup(this, 'HandleWebChatCommLogGroup', {
+      logGroupName: `/aws/lambda/${handleWebChatCommFunction.functionName}`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // -------------------------------------------------------
+
+    /***************** Configure WebSocket API routes ******* */
+    // Add WebSocket routes with the actual function
+    this.webSocketApi.addRoute('$connect', {
+      integration: new apigwv2Integrations.WebSocketLambdaIntegration(
+        'ConnectIntegration',
+        handleWebChatCommFunction
+      ),
+    });
+
+    this.webSocketApi.addRoute('$disconnect', {
+      integration: new apigwv2Integrations.WebSocketLambdaIntegration(
+        'DisconnectIntegration',
+        handleWebChatCommFunction
+      ),
+    });
+
+    this.webSocketApi.addRoute('$default', {
+      integration: new apigwv2Integrations.WebSocketLambdaIntegration(
+        'DefaultIntegration',
+        handleWebChatCommFunction
+      ),
+    });
+
+    this.webSocketApi.addRoute('message', {
+      integration: new apigwv2Integrations.WebSocketLambdaIntegration(
+        'MessageIntegration',
+        handleWebChatCommFunction
+      ),
+    });
+
+    // Update WebChatMe function with WebSocket API endpoint
+    webChatMeFunction.addEnvironment(
+      'WEBSOCKET_API_ENDPOINT',
+      `https://${this.webSocketApi.apiId}.execute-api.${cdk.Stack.of(this).region}.amazonaws.com/${webSocketStage.stageName}`
+    );
+
+    // Grant WebSocket API permissions to invoke the function
+    handleWebChatCommFunction.grantInvoke(new iam.ServicePrincipal('apigateway.amazonaws.com'));
+
+    // Grant WebChatMe function permission to post to WebSocket connections
+    webChatMeFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['execute-api:ManageConnections'],
+      resources: [`arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.webSocketApi.apiId}/*/*`]
+    }));
+
+    // Output WebSocket API URL
+    new cdk.CfnOutput(this, "WebSocketApiUrl", {
+      value: `wss://${this.webSocketApi.apiId}.execute-api.${cdk.Stack.of(this).region}.amazonaws.com/${webSocketStage.stageName}`
+    });
+
+    // Output active notification channel
+    new cdk.CfnOutput(this, "ActiveNotificationChannel", {
+      value: props.notificationChannel,
+      description: "Currently active notification channel (slack or webchat)"
+    });
+    /******************************************************************************* */
 
     /*** Lambda function to serve manual State machine callbacks from human user ***/
     const eventCallbackFunction = new lambda.Function(this, 'EventCallback', {
@@ -294,19 +441,66 @@ export class OpsOrchestrationStack extends cdk.Stack {
       }
     });
 
-    const notificationRule = new events.Rule(this, 'OheroNotificationRule', {
-      eventBus: props.oheroEventBus,
-      eventPattern: {
-        source: [
-          `${props.appEventDomainPrefix}.ops-orchestration`,
-          `${props.appEventDomainPrefix}.ai-integration`,
-          `${props.appEventDomainPrefix}.ai-chat`
-        ]
-      },
-      ruleName: 'OpsNotificationRule',
-      description: 'Subscription by Ohero notification service.',
-      targets: [new evtTargets.SfnStateMachine(notificationSfn)]
+    // Conditional EventBridge rule for Slack notifications
+    if (props.notificationChannel === 'slack') {
+      const notificationRule = new events.Rule(this, 'OheroNotificationRule', {
+        eventBus: props.oheroEventBus,
+        eventPattern: {
+          source: [
+            `${props.appEventDomainPrefix}.ops-orchestration`,
+            `${props.appEventDomainPrefix}.ai-integration`,
+            `${props.appEventDomainPrefix}.ai-chat`
+          ]
+        },
+        ruleName: 'OpsNotificationRule',
+        description: 'Subscription by Ohero Slack notification service.',
+        targets: [new evtTargets.SfnStateMachine(notificationSfn)]
+      });
+    }
+    /******************************************************************************* */
+
+    /*** State machine for web chat notification service *****/
+    const webChatNotificationSfnLogGroup = new logs.LogGroup(this, 'OheroWebChatNotificationSfnLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      logGroupName: `/aws/vendedlogs/states/OheroWebChatNotificationSfnLogs`,
     });
+    const webChatNotificationSfn = new sfn.StateMachine(this, 'OheroWebChatNotification', {
+      definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ops-notification-web.asl')).toString().trim()),
+      definitionSubstitutions: {
+        "EventManagementTablePlaceHolder": props.eventManagementTableName,
+        "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
+        "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix,
+        "WebChatMeFunctionNamePlaceholder": webChatMeFunction.functionName,
+        "EventCallbackUrlPlaceholder": `${this.restApi.url}event-callback`
+      },
+      tracingEnabled: false,
+      stateMachineType: sfn.StateMachineType.STANDARD,
+      timeout: cdk.Duration.minutes(5),
+      role: opsOrchestrationRole,
+      logs: {
+        destination: webChatNotificationSfnLogGroup,
+        level: sfn.LogLevel.ERROR,
+        includeExecutionData: true,
+      }
+    });
+
+    // Conditional EventBridge rule for Web Chat notifications
+    if (props.notificationChannel === 'webchat') {
+      const webChatNotificationRule = new events.Rule(this, 'OheroWebChatNotificationRule', {
+        eventBus: props.oheroEventBus,
+        eventPattern: {
+          source: [
+            `${props.appEventDomainPrefix}.ops-orchestration`,
+            `${props.appEventDomainPrefix}.ai-integration`,
+            `${props.appEventDomainPrefix}.ai-chat`
+          ]
+        },
+        ruleName: 'OpsWebChatNotificationRule',
+        description: 'Subscription by Ohero web chat notification service.',
+        targets: [new evtTargets.SfnStateMachine(webChatNotificationSfn)]
+      });
+    }
     /******************************************************************************* */
 
   }

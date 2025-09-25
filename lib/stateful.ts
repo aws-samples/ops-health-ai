@@ -18,6 +18,7 @@ export class StatefulStack extends cdk.Stack {
   public readonly eventManagementTable: dynamodb.ITable
   public readonly ticketManagementTable: dynamodb.ITable
   public readonly teamManagementTable: dynamodb.ITable
+  public readonly webSocketConnectionsTable: dynamodb.ITable
   public readonly oheroEventBus: events.IEventBus
   public readonly bedrockGuardrail: bedrock.CfnGuardrail
   public readonly bedrockGuardrailVersion: bedrock.CfnGuardrailVersion
@@ -274,6 +275,20 @@ export class StatefulStack extends cdk.Stack {
       },
     });
     /*************************************************************************************** */
+
+    /******************* DynamoDB Table for WebSocket connection tracking *****************/
+    this.webSocketConnectionsTable = new dynamodb.Table(this, 'WebSocketConnectionsTable', {
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      partitionKey: {
+        name: "connectionId",
+        type: dynamodb.AttributeType.STRING
+      },
+      timeToLiveAttribute: 'ttl', // Auto-cleanup stale connections
+    });
+    /*************************************************************************************** */
+
+
 
     /******************* Create a guardrail configuration for the bedrock agents *****************/
     this.bedrockGuardrail = new bedrock.CfnGuardrail(this, 'BedrockGuardrail', {

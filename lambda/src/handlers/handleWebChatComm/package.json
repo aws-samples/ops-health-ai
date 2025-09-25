@@ -1,0 +1,20 @@
+{
+  "name": "handle-web-chat-comm",
+  "version": "1.0.0",
+  "description": "Lambda function to handle WebSocket web chat communications",
+  "main": "app.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "esbuild": "^0.14.14",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/client-eventbridge": "^3.0.0",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/client-sts": "^3.0.0",
+    "@aws-sdk/credential-providers": "^3.0.0"
+  },
+  "devDependencies": {
+  }
+}
