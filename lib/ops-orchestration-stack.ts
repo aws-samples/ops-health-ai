@@ -25,6 +25,7 @@ export interface OpsOrchestrationStackProps extends cdk.StackProps {
   appEventDomainPrefix: string
   webChatApiKey?: string
   webSocketConnectionsTableName: string
+  teamManagementTableName: string
   notificationChannel: 'slack' | 'webchat'
 }
 
@@ -258,6 +259,7 @@ export class OpsOrchestrationStack extends cdk.Stack {
         INTEGRATION_EVENT_BUS_NAME: props.oheroEventBus.eventBusName,
         PAYLOAD_BUCKET: props.transientPayloadsBucketName,
         WEB_CHAT_API_KEY: props.webChatApiKey || '', // API key for authentication
+        TEAM_MANAGEMENT_TABLE_NAME: props.teamManagementTableName,
       },
     });
 

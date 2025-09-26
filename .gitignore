@@ -16,3 +16,6 @@ prompt-templates/bkup
 deployment
 .guidelines
 docs
+
+# Frontend build artifacts
+frontend/dist/

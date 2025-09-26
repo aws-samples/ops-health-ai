@@ -11,6 +11,7 @@
     "cdk": "cdk"
   },
   "devDependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.896.0",
     "@aws-sdk/client-bedrock-agent": "^3.894.0",
     "@aws-sdk/client-bedrock-agent-runtime": "^3.894.0",
     "@aws-sdk/client-bedrock-runtime": "^3.894.0",

@@ -2,7 +2,8 @@ import { APIGatewayProxyEventV2 } from "aws-lambda"
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts"
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge"
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
+import { ApiGatewayManagementApiClient, PostToConnectionCommand } from '@aws-sdk/client-apigatewaymanagementapi';
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 
 interface ApiGwResponse {
@@ -44,11 +45,104 @@ const responseHeaders = {
   'Access-Control-Allow-Origin': '*'
 }
 
+const handleTeamChannelsRequest = async (connectionId: string): Promise<ApiGwResponse> => {
+  try {
+    // Scan the team management table to get all team channels
+    const scanCommand = new ScanCommand({
+      TableName: process.env.TEAM_MANAGEMENT_TABLE_NAME,
+      ProjectionExpression: 'PK, ChannelName, SlackChannelId'
+    });
+
+    const result = await dynamodb.send(scanCommand);
+
+    const teamChannels = result.Items?.map(item => ({
+      PK: item.PK?.S || '',
+      ChannelName: item.ChannelName?.S || '',
+      SlackChannelId: item.SlackChannelId?.S || ''
+    })) || [];
+
+    console.log(`Retrieved ${teamChannels.length} team channels for connection: ${connectionId}`);
+
+    // Send response back through WebSocket using API Gateway Management API
+    const apiGatewayManagementApi = new ApiGatewayManagementApiClient({
+      credentials: credentialProvider,
+      endpoint: process.env.WEBSOCKET_API_ENDPOINT
+    });
+
+    const responseMessage = {
+      type: 'teamChannels',
+      data: teamChannels,
+      timestamp: new Date().toISOString()
+    };
+
+    await apiGatewayManagementApi.send(
+      new PostToConnectionCommand({
+        ConnectionId: connectionId,
+        Data: JSON.stringify(responseMessage)
+      })
+    );
+
+    return {
+      headers: responseHeaders,
+      statusCode: 200,
+      body: JSON.stringify({ message: 'Team channels sent successfully' })
+    };
+
+  } catch (error) {
+    console.error('Error handling team channels request:', error);
+
+    // Try to send error message back to client
+    try {
+      const apiGatewayManagementApi = new ApiGatewayManagementApiClient({
+        credentials: credentialProvider,
+        endpoint: process.env.WEBSOCKET_API_ENDPOINT
+      });
+
+      const errorMessage = {
+        type: 'error',
+        message: 'Failed to retrieve team channels',
+        timestamp: new Date().toISOString()
+      };
+
+      await apiGatewayManagementApi.send(
+        new PostToConnectionCommand({
+          ConnectionId: connectionId,
+          Data: JSON.stringify(errorMessage)
+        })
+      );
+    } catch (sendError) {
+      console.error('Error sending error message:', sendError);
+    }
+
+    return {
+      headers: responseHeaders,
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Failed to retrieve team channels' })
+    };
+  }
+};
+
 const dispatchWebChatMessage = async (webChatEvent: WebChatEvent): Promise<ApiGwResponse> => {
   try {
     // Parse the WebSocket message
     const messageData: WebChatMessage = JSON.parse(webChatEvent.body);
     const connectionId = webChatEvent.requestContext.connectionId;
+
+    // Handle ping messages (heartbeat) - just acknowledge and return
+    if (messageData.text === undefined && (messageData as any).action === 'ping') {
+      console.log(`Heartbeat ping received from connection: ${connectionId}`);
+      return {
+        headers: responseHeaders,
+        statusCode: 200,
+        body: JSON.stringify({ message: 'pong' })
+      };
+    }
+
+    // Handle team channels request - return team management table data
+    if (messageData.text === undefined && (messageData as any).action === 'getTeamChannels') {
+      console.log(`Team channels request received from connection: ${connectionId}`);
+      return await handleTeamChannelsRequest(connectionId);
+    }
 
     // Add connection metadata
     messageData.connectionId = connectionId;

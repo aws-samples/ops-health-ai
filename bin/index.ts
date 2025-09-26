@@ -9,6 +9,7 @@ import { OrgAdminOrgStack } from '../lib/org-admin-stack';
 import { OpsHealthAgentStack } from '../lib/agent-ops-health-stack';
 import { OpsOrchestrationStack } from '../lib/ops-orchestration-stack';
 import { OpsEventLakeStack } from '../lib/ops-event-lake-stack';
+import { WebFrontendStack } from '../lib/web-frontend-stack';
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
@@ -34,7 +35,7 @@ const eventRegions = (process.env.EVENT_REGIONS as string).split(',')
 
 const appEventDomainPrefix = 'com.app.ohero'
 
-const scopedAccountIds = process.env.CDK_PROCESSING_ACCOUNT as string === process.env.CDK_ADMIN_ACCOUNT as string? [process.env.CDK_PROCESSING_ACCOUNT as string] : [process.env.CDK_PROCESSING_ACCOUNT as string, process.env.CDK_ADMIN_ACCOUNT as string]
+const scopedAccountIds = process.env.CDK_PROCESSING_ACCOUNT as string === process.env.CDK_ADMIN_ACCOUNT as string ? [process.env.CDK_PROCESSING_ACCOUNT as string] : [process.env.CDK_PROCESSING_ACCOUNT as string, process.env.CDK_ADMIN_ACCOUNT as string]
 
 const statefulStack = new StatefulStack(app, 'OheroStatefulStack', {
   stackName: `OheroStatefulStack`,
@@ -92,6 +93,7 @@ const opsOrchestrationStack = new OpsOrchestrationStack(app, 'OheroOrchestration
   appEventDomainPrefix: appEventDomainPrefix,
   webChatApiKey: process.env.WEB_CHAT_API_KEY,
   webSocketConnectionsTableName: statefulStack.webSocketConnectionsTable.tableName,
+  teamManagementTableName: statefulStack.teamManagementTable.tableName,
   notificationChannel: (process.env.NOTIFICATION_CHANNEL as 'slack' | 'webchat') || 'slack'
 });
 
@@ -137,4 +139,26 @@ const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OheroHealthAgentStack'
   guardrailArn: statefulStack.bedrockGuardrail.attrGuardrailArn,
   teamManagementTableName: statefulStack.teamManagementTable.tableName,
 });
+
+// Web Frontend Stack - only deploy if webchat notification channel is enabled
+if ((process.env.NOTIFICATION_CHANNEL as string) === 'webchat') {
+  const webFrontendStack = new WebFrontendStack(app, 'OheroWebFrontendStack', {
+    stackName: `OheroWebFrontendStack`,
+    tags: {
+      env: 'prod',
+      "ManagedBy": 'OheroWebFrontendStack',
+      "auto-delete": "no"
+    },
+    env: {
+      account: process.env.CDK_PROCESSING_ACCOUNT,
+      region: process.env.CDK_PROCESSING_REGION,
+    },
+    webChatApiKey: process.env.WEB_CHAT_API_KEY as string,
+    teamManagementTableName: process.env.TEAM_MANAGEMENT_TABLE as string,
+    webSocketUrl: process.env.WEB_SOCKET_URL as string
+  });
+
+  // Add dependency to ensure orchestration stack is deployed first
+  webFrontendStack.addDependency(opsOrchestrationStack);
+}
 
