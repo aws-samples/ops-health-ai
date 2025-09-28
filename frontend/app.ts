@@ -91,6 +91,7 @@ class OheroWebChat {
     private messages: Map<string, ChatMessage[]> = new Map(); // channelId -> messages
     private threads: Map<string, MessageThread> = new Map(); // threadId -> thread
     private replyingToThread: string | null = null;
+    private unreadCounts: Map<string, number> = new Map(); // channelId -> unread count
 
     private elements: {
         connectionStatus: HTMLElement;
@@ -147,6 +148,7 @@ class OheroWebChat {
 
         this.channels.set(this.DEFAULT_CHANNEL_ID, defaultChannel);
         this.messages.set(this.DEFAULT_CHANNEL_ID, []);
+        this.unreadCounts.set(this.DEFAULT_CHANNEL_ID, 0);
         this.currentChannel = this.DEFAULT_CHANNEL_ID;
     }
 
@@ -505,6 +507,10 @@ class OheroWebChat {
                 if (!this.messages.has(channel.PK)) {
                     this.messages.set(channel.PK, []);
                 }
+
+                if (!this.unreadCounts.has(channel.PK)) {
+                    this.unreadCounts.set(channel.PK, 0);
+                }
             });
 
             console.log('Final channels map:', this.channels);
@@ -553,8 +559,22 @@ class OheroWebChat {
         nameSpan.className = 'channel-name';
         nameSpan.textContent = channel.ChannelName;
 
-        channelDiv.appendChild(hashSpan);
-        channelDiv.appendChild(nameSpan);
+        // Add unread indicator
+        const unreadCount = this.unreadCounts.get(channelId) || 0;
+        if (unreadCount > 0 && channelId !== this.currentChannel) {
+            channelDiv.classList.add('has-unread');
+
+            const unreadBadge = document.createElement('span');
+            unreadBadge.className = 'unread-badge';
+            unreadBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+
+            channelDiv.appendChild(hashSpan);
+            channelDiv.appendChild(nameSpan);
+            channelDiv.appendChild(unreadBadge);
+        } else {
+            channelDiv.appendChild(hashSpan);
+            channelDiv.appendChild(nameSpan);
+        }
 
         return channelDiv;
     }
@@ -564,6 +584,9 @@ class OheroWebChat {
 
         const channel = this.channels.get(channelId);
         if (!channel) return;
+
+        // Clear unread count for the channel we're switching to
+        this.unreadCounts.set(channelId, 0);
 
         // Update current channel
         this.currentChannel = channelId;
@@ -599,6 +622,13 @@ class OheroWebChat {
         this.messages.set(message.channel, channelMessages);
         console.log('Channel', message.channel, 'now has', channelMessages.length, 'messages');
 
+        // Update unread count if message is not for current channel and not from user
+        if (message.channel !== this.currentChannel && message.author !== 'You') {
+            const currentUnread = this.unreadCounts.get(message.channel) || 0;
+            this.unreadCounts.set(message.channel, currentUnread + 1);
+            console.log('Updated unread count for channel', message.channel, 'to', currentUnread + 1);
+        }
+
         // Handle threading
         if (message.isReply && message.parentThreadId) {
             // This is a reply to an existing thread
@@ -625,6 +655,8 @@ class OheroWebChat {
         } else {
             console.log('Message for different channel:', message.channel, 'current:', this.currentChannel);
             console.log('Available channels:', Array.from(this.channels.keys()));
+            // Update channels list to show unread indicators
+            this.updateChannelsList();
         }
 
         // Force a UI refresh to ensure thread counts are updated

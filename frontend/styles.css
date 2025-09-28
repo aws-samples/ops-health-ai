@@ -115,6 +115,27 @@ body {
     text-overflow: ellipsis;
 }
 
+.channel-item.has-unread .channel-name {
+    font-weight: 700;
+    color: white;
+}
+
+.unread-badge {
+    background: #dc3545;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
 /* Main Content Styles */
 .main-content {
     flex: 1;
