@@ -40,9 +40,20 @@ def lambda_handler(event, context):
     # Extract channel from message (if present) and pass it through
     channel = message.get('channel')
 
-    # Generate thread ID if not provided (Slack timestamp format)
-    if not thread_id:
-        # Generate Slack-compatible timestamp format: seconds.microseconds
+    # Normalize thread ID - handle DynamoDB format {"S": "value"} or plain string
+    if thread_id:
+        if isinstance(thread_id, dict):
+            # Handle DynamoDB format - extract string value or generate new if not string type
+            if 'S' in thread_id:
+                thread_id = thread_id['S']
+            else:
+                # DynamoDB object but not string type - generate new threadId
+                import time
+                current_time = time.time()
+                thread_id = f"{current_time:.6f}"
+        # If it's already a string, keep it as-is
+    else:
+        # Generate thread ID if not provided (Slack timestamp format)
         import time
         current_time = time.time()
         thread_id = f"{current_time:.6f}"
@@ -170,6 +181,18 @@ def handle_test_mode(event, context):
 
     # Extract channel for test mode too
     channel = message.get('channel')
+
+    # Normalize thread ID - handle DynamoDB format {"S": "value"} or plain string
+    if thread_id:
+        if isinstance(thread_id, dict):
+            # Handle DynamoDB format - extract string value or generate new if not string type
+            if 'S' in thread_id:
+                thread_id = thread_id['S']
+            else:
+                # DynamoDB object but not string type - generate new threadId
+                import time
+                current_time = time.time()
+                thread_id = f"{current_time:.6f}"
 
     # If no message provided, use test data
     if not message:

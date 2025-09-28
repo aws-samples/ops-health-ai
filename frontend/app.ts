@@ -60,9 +60,10 @@ class OheroWebChat {
     private readonly heartbeatIntervalMs: number = 8 * 60 * 1000; // 8 minutes
 
     // Channel and message management
+    private readonly DEFAULT_CHANNEL_ID: string = 'default-channel-001';
     private channels: Map<string, TeamChannel> = new Map();
     private slackChannelMapping: Map<string, string> = new Map(); // slackChannelId -> teamId
-    private currentChannel: string = 'default';
+    private currentChannel: string = 'default-channel-001';
     private messages: Map<string, ChatMessage[]> = new Map(); // channelId -> messages
     private threads: Map<string, MessageThread> = new Map(); // threadId -> thread
     private replyingToThread: string | null = null;
@@ -113,16 +114,16 @@ class OheroWebChat {
     }
 
     private initializeDefaultChannel(): void {
-        // Initialize default channel
+        // Initialize default channel with dummy channel ID
         const defaultChannel: TeamChannel = {
-            PK: 'default',
+            PK: this.DEFAULT_CHANNEL_ID,
             ChannelName: 'Default Team',
-            SlackChannelId: 'default'
+            SlackChannelId: this.DEFAULT_CHANNEL_ID
         };
 
-        this.channels.set('default', defaultChannel);
-        this.messages.set('default', []);
-        this.currentChannel = 'default';
+        this.channels.set(this.DEFAULT_CHANNEL_ID, defaultChannel);
+        this.messages.set(this.DEFAULT_CHANNEL_ID, []);
+        this.currentChannel = this.DEFAULT_CHANNEL_ID;
     }
 
     private attachEventListeners(): void {
@@ -385,23 +386,29 @@ class OheroWebChat {
             } else {
                 // Handle regular chat messages from backend
                 const text = message.text || message.message || message.content || JSON.stringify(message);
+
                 const threadId = message.threadId || (Date.now() / 1000).toString();
 
+                // Enrich message with default channel ID if no channel is provided
+                if (!message.channel) {
+                    message.channel = this.DEFAULT_CHANNEL_ID;
+                }
+
                 // Handle channel mapping - could be team ID (fin01) or Slack channel ID (C094YKMH56K)
-                let channel = message.channel || 'default';
+                let channel = message.channel;
 
                 console.log('Original channel from message:', message.channel);
                 console.log('Available channels:', Array.from(this.channels.keys()));
                 console.log('Slack channel mappings:', Array.from(this.slackChannelMapping.entries()));
 
                 // If it's a Slack channel ID, map it to team ID
-                if (channel !== 'default' && this.slackChannelMapping.has(channel)) {
+                if (channel !== this.DEFAULT_CHANNEL_ID && this.slackChannelMapping.has(channel)) {
                     const teamId = this.slackChannelMapping.get(channel);
                     console.log('Mapped Slack channel ID to team ID:', channel, '->', teamId);
                     channel = teamId!;
-                } else if (channel !== 'default' && !this.channels.has(channel)) {
+                } else if (channel !== this.DEFAULT_CHANNEL_ID && !this.channels.has(channel)) {
                     console.log('Unknown channel, defaulting:', channel);
-                    channel = 'default';
+                    channel = this.DEFAULT_CHANNEL_ID;
                 }
 
                 // Determine if this is a reply based on existing thread
@@ -480,15 +487,15 @@ class OheroWebChat {
         channelsList.innerHTML = '';
 
         // Add default channel first
-        const defaultChannel = this.channels.get('default');
+        const defaultChannel = this.channels.get(this.DEFAULT_CHANNEL_ID);
         if (defaultChannel) {
-            const channelElement = this.createChannelElement('default', defaultChannel);
+            const channelElement = this.createChannelElement(this.DEFAULT_CHANNEL_ID, defaultChannel);
             channelsList.appendChild(channelElement);
         }
 
         // Add other channels
         this.channels.forEach((channel, channelId) => {
-            if (channelId !== 'default') {
+            if (channelId !== this.DEFAULT_CHANNEL_ID) {
                 const channelElement = this.createChannelElement(channelId, channel);
                 channelsList.appendChild(channelElement);
             }
@@ -533,7 +540,7 @@ class OheroWebChat {
     private updateChannelHeader(channel: TeamChannel): void {
         this.elements.currentChannelName.textContent = `# ${channel.ChannelName}`;
         this.elements.channelDescription.textContent =
-            channel.PK === 'default'
+            channel.PK === this.DEFAULT_CHANNEL_ID
                 ? 'Default channel for operational events'
                 : `Team channel: ${channel.SlackChannelId}`;
     }
@@ -616,6 +623,13 @@ class OheroWebChat {
     private renderMessageThread(thread: MessageThread, container: HTMLElement): void {
         // Render root message
         const rootMessageElement = this.createMessageElement(thread.rootMessage, false);
+        rootMessageElement.classList.add('message-thread-root');
+
+        // Add expanded class if thread is expanded
+        if (thread.replies.length > 0 && thread.isExpanded) {
+            rootMessageElement.classList.add('thread-expanded');
+        }
+
         container.appendChild(rootMessageElement);
 
         // Render replies if any and if expanded

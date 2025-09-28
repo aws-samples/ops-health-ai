@@ -121,6 +121,8 @@ body {
     display: flex;
     flex-direction: column;
     background: white;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .chat-header {
@@ -167,15 +169,52 @@ body {
     flex: 1;
     padding: 16px 24px;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-width: 100%;
 }
 
 .message-group {
     display: flex;
     flex-direction: column;
     margin-bottom: 16px;
+}
+
+.message-thread-root {
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 1;
+}
+
+.message-thread-root .message-text {
+    margin-bottom: 8px;
+}
+
+/* Add subtle visual distinction for root messages in expanded threads */
+.message-thread-root.thread-expanded {
+    border-left: 3px solid #e5e7eb;
+    padding-left: 12px;
+    margin-left: -12px;
+    background: rgba(248, 249, 250, 0.5);
+    border-radius: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    overflow: visible;
+}
+
+.message-thread-root.thread-expanded .message-content {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+}
+
+.message-thread-root.thread-expanded .message-text {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    white-space: pre-wrap;
 }
 
 .message {
@@ -185,6 +224,8 @@ body {
     word-wrap: break-word;
     line-height: 1.4;
     position: relative;
+    max-width: 100%;
+    overflow: visible;
 }
 
 .message:hover {
@@ -241,6 +282,8 @@ body {
 .message-content {
     flex: 1;
     min-width: 0;
+    max-width: 100%;
+    overflow: visible;
 }
 
 .message-header {
@@ -265,6 +308,13 @@ body {
     color: #1a1a1a;
     font-size: 0.9rem;
     white-space: pre-wrap;
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    line-height: 1.5;
+    overflow: visible;
+    height: auto;
 }
 
 .message-actions {
@@ -278,6 +328,7 @@ body {
     opacity: 0;
     transition: opacity 0.2s;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 10;
 }
 
 .message-action-btn {
@@ -300,7 +351,8 @@ body {
     margin-left: 48px;
     border-left: 2px solid #e5e7eb;
     padding-left: 16px;
-    margin-top: 8px;
+    margin-top: 6px;
+    margin-bottom: 8px;
 }
 
 .thread-reply {
@@ -317,6 +369,7 @@ body {
 .show-replies-btn,
 .hide-replies-btn {
     margin-left: 48px;
+    margin-top: 4px;
     background: none;
     border: none;
     color: #1264a3;
@@ -333,7 +386,8 @@ body {
 
 .thread-actions {
     margin-left: 48px;
-    margin-top: 8px;
+    margin-top: 4px;
+    margin-bottom: 12px;
     display: flex;
     gap: 12px;
     align-items: center;
