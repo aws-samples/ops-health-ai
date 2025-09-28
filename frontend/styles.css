@@ -548,6 +548,145 @@ button {
 
 
 
+/* Event Card Styles */
+.event-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f8f9fa;
+    margin: 8px 0;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.event-card.health_event {
+    border-left: 4px solid #10b981;
+}
+
+.event-card.sechub_event {
+    border-left: 4px solid #f59e0b;
+}
+
+.event-card.health_event_update {
+    border-left: 4px solid #3b82f6;
+}
+
+.event-card.event_status {
+    border-left: 4px solid #6b7280;
+}
+
+.event-card.event_status[data-status="triaged"] {
+    border-left: 4px solid #10b981;
+}
+
+.event-card.event_status[data-status="discharged"] {
+    border-left: 4px solid #ef4444;
+}
+
+.event-header {
+    background: white;
+    padding: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.event-icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+    border-radius: 8px;
+}
+
+.event-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #1a1a1a;
+    flex: 1;
+}
+
+.event-details {
+    padding: 16px;
+    background: #f8f9fa;
+}
+
+.event-detail-row {
+    display: flex;
+    margin-bottom: 8px;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.event-detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.event-detail-label {
+    font-weight: 500;
+    color: #6b7280;
+    min-width: 120px;
+    font-size: 0.875rem;
+}
+
+.event-detail-value {
+    color: #1a1a1a;
+    font-size: 0.875rem;
+    flex: 1;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.event-actions {
+    padding: 16px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.event-action-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 120px;
+}
+
+.event-action-btn.primary {
+    background: #10b981;
+    color: white;
+}
+
+.event-action-btn.primary:hover {
+    background: #059669;
+}
+
+.event-action-btn.danger {
+    background: #ef4444;
+    color: white;
+}
+
+.event-action-btn.danger:hover {
+    background: #dc2626;
+}
+
+.event-action-btn.secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.event-action-btn.secondary:hover {
+    background: #4b5563;
+}
+
 /* Scrollbar styling */
 .chat-messages::-webkit-scrollbar {
     width: 6px;

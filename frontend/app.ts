@@ -24,6 +24,29 @@ interface IncomingMessage {
     timestamp?: string;
     channel?: string;
     messageId?: string;
+
+    // Health event specific fields
+    title?: string;
+    eventType?: string;
+    status?: string;
+    startTime?: string;
+    description?: string;
+    actions?: EventAction[];
+
+    // Security Hub event specific fields
+    findingTitle?: string;
+    severity?: string;
+    accountId?: string;
+    affectedResource?: string;
+    lastObservedAt?: string;
+}
+
+interface EventAction {
+    type: string;
+    text: string;
+    action: string;
+    url: string;
+    style: string;
 }
 
 interface TeamChannel {
@@ -41,6 +64,7 @@ interface ChatMessage {
     channel: string;
     isReply: boolean;
     parentThreadId?: string;
+    structuredData?: IncomingMessage;
 }
 
 interface MessageThread {
@@ -384,8 +408,19 @@ class OheroWebChat {
                 console.log('Handling team channels response...');
                 this.handleTeamChannelsResponse(message);
             } else {
-                // Handle regular chat messages from backend
-                const text = message.text || message.message || message.content || JSON.stringify(message);
+                // Handle structured event messages (health_event, sechub_event) and regular chat messages
+                let text: string;
+                let isStructuredEvent = false;
+
+                if (message.type === 'health_event' || message.type === 'sechub_event' ||
+                    message.type === 'health_event_update' || message.type === 'event_status') {
+                    // This is a structured event message - we'll render it specially
+                    text = message.title || message.text || 'Event notification';
+                    isStructuredEvent = true;
+                } else {
+                    // Handle regular chat messages from backend
+                    text = message.text || message.message || message.content || JSON.stringify(message);
+                }
 
                 const threadId = message.threadId || (Date.now() / 1000).toString();
 
@@ -420,7 +455,9 @@ class OheroWebChat {
                     existingThread: !!existingThread,
                     isReply,
                     channel,
-                    currentChannel: this.currentChannel
+                    currentChannel: this.currentChannel,
+                    messageType: message.type,
+                    isStructuredEvent
                 });
 
                 this.addChatMessage({
@@ -431,7 +468,8 @@ class OheroWebChat {
                     threadId: threadId,
                     channel: channel,
                     isReply: isReply,
-                    parentThreadId: isReply ? threadId : undefined
+                    parentThreadId: isReply ? threadId : undefined,
+                    structuredData: isStructuredEvent ? message : undefined
                 });
             }
 
@@ -683,6 +721,125 @@ class OheroWebChat {
         }
     }
 
+    private createEventCard(eventData: IncomingMessage): HTMLElement {
+        const eventCard = document.createElement('div');
+        eventCard.className = `event-card ${eventData.type}`;
+
+        // Add data attributes for styling
+        if (eventData.type === 'event_status' && eventData.status) {
+            eventCard.setAttribute('data-status', eventData.status);
+        }
+
+        // Event header
+        const eventHeader = document.createElement('div');
+        eventHeader.className = 'event-header';
+
+        const eventIcon = document.createElement('div');
+        eventIcon.className = 'event-icon';
+        // Set icon based on event type
+        if (eventData.type === 'health_event') {
+            eventIcon.textContent = '🏥';
+        } else if (eventData.type === 'sechub_event') {
+            eventIcon.textContent = '🔒';
+        } else if (eventData.type === 'health_event_update') {
+            eventIcon.textContent = '🔄';
+        } else if (eventData.type === 'event_status') {
+            eventIcon.textContent = eventData.status === 'triaged' ? '✅' : '❌';
+        } else {
+            eventIcon.textContent = '📋';
+        }
+
+        const eventTitle = document.createElement('div');
+        eventTitle.className = 'event-title';
+        eventTitle.textContent = eventData.title || eventData.text || 'Event Notification';
+
+        eventHeader.appendChild(eventIcon);
+        eventHeader.appendChild(eventTitle);
+
+        // Event details
+        const eventDetails = document.createElement('div');
+        eventDetails.className = 'event-details';
+
+        if (eventData.type === 'health_event') {
+            this.addEventDetail(eventDetails, 'Event Type', eventData.eventType);
+            this.addEventDetail(eventDetails, 'Status', eventData.status);
+            this.addEventDetail(eventDetails, 'Start Time', eventData.startTime ? new Date(eventData.startTime).toLocaleString() : undefined);
+            this.addEventDetail(eventDetails, 'Description', eventData.description);
+        } else if (eventData.type === 'sechub_event') {
+            this.addEventDetail(eventDetails, 'Finding', eventData.findingTitle);
+            this.addEventDetail(eventDetails, 'Severity', eventData.severity);
+            this.addEventDetail(eventDetails, 'Account ID', eventData.accountId);
+            this.addEventDetail(eventDetails, 'Affected Resource', eventData.affectedResource);
+            this.addEventDetail(eventDetails, 'Last Observed', eventData.lastObservedAt ? new Date(eventData.lastObservedAt).toLocaleString() : undefined);
+            this.addEventDetail(eventDetails, 'Description', eventData.description);
+        } else if (eventData.type === 'health_event_update') {
+            this.addEventDetail(eventDetails, 'Status', eventData.status);
+            this.addEventDetail(eventDetails, 'Start Time', eventData.startTime ? new Date(eventData.startTime).toLocaleString() : undefined);
+            this.addEventDetail(eventDetails, 'Description', eventData.description);
+        } else if (eventData.type === 'event_status') {
+            this.addEventDetail(eventDetails, 'Status', eventData.status);
+            if (eventData.text) {
+                this.addEventDetail(eventDetails, 'Message', eventData.text);
+            }
+        }
+
+        eventCard.appendChild(eventHeader);
+        eventCard.appendChild(eventDetails);
+
+        // Event actions (only if actions are present)
+        if (eventData.actions && eventData.actions.length > 0) {
+            const eventActions = document.createElement('div');
+            eventActions.className = 'event-actions';
+
+            eventData.actions.forEach(action => {
+                const actionButton = document.createElement('button');
+                actionButton.className = `event-action-btn ${action.style}`;
+                actionButton.textContent = action.text;
+                actionButton.addEventListener('click', () => {
+                    this.handleEventAction(action);
+                });
+                eventActions.appendChild(actionButton);
+            });
+
+            eventCard.appendChild(eventActions);
+        }
+
+        return eventCard;
+    }
+
+    private addEventDetail(container: HTMLElement, label: string, value?: string): void {
+        if (!value) return;
+
+        const detailRow = document.createElement('div');
+        detailRow.className = 'event-detail-row';
+
+        const detailLabel = document.createElement('span');
+        detailLabel.className = 'event-detail-label';
+        detailLabel.textContent = label + ':';
+
+        const detailValue = document.createElement('span');
+        detailValue.className = 'event-detail-value';
+        detailValue.textContent = value;
+
+        detailRow.appendChild(detailLabel);
+        detailRow.appendChild(detailValue);
+        container.appendChild(detailRow);
+    }
+
+    private handleEventAction(action: EventAction): void {
+        console.log('Handling event action:', action);
+
+        if (action.url) {
+            // Open the callback URL in a new tab/window
+            window.open(action.url, '_blank');
+
+            // Show feedback to user
+            this.addSystemMessage(`Action "${action.text}" triggered. Check the new tab for results.`);
+        } else {
+            this.addSystemMessage(`Action "${action.text}" - No URL provided`);
+        }
+    }
+
     private createMessageElement(message: ChatMessage, isReply: boolean): HTMLElement {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message';
@@ -713,13 +870,21 @@ class OheroWebChat {
         header.appendChild(author);
         header.appendChild(timestamp);
 
-        // Message text
-        const text = document.createElement('div');
-        text.className = 'message-text';
-        text.textContent = message.text;
-
-        content.appendChild(header);
-        content.appendChild(text);
+        // Message content - either regular text or structured event
+        if (message.structuredData && (message.structuredData.type === 'health_event' ||
+            message.structuredData.type === 'sechub_event' || message.structuredData.type === 'health_event_update' ||
+            message.structuredData.type === 'event_status')) {
+            const eventCard = this.createEventCard(message.structuredData);
+            content.appendChild(header);
+            content.appendChild(eventCard);
+        } else {
+            // Regular message text
+            const text = document.createElement('div');
+            text.className = 'message-text';
+            text.textContent = message.text;
+            content.appendChild(header);
+            content.appendChild(text);
+        }
 
         // Message actions (reply button)
         if (!isReply) {
