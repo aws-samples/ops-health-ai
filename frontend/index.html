@@ -7,26 +7,54 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <h1>OHERO - Operational Health Event Resolution Orchestrator</h1>
-            <div class="connection-status" id="connectionStatus">Disconnected</div>
+    <div class="app-container">
+        <!-- Sidebar with channels -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>OHERO</h2>
+                <div class="connection-status" id="connectionStatus">Connecting...</div>
+            </div>
+
+            <div class="channels-section">
+                <div class="channels-header">
+                    <h3>Channels</h3>
+                    <button id="refreshChannelsBtn" title="Refresh Channels">↻</button>
+                </div>
+                <div class="channels-list" id="channelsList">
+                    <div class="channel-item active" data-channel-id="default">
+                        <span class="channel-hash">#</span>
+                        <span class="channel-name">Default Team</span>
+                    </div>
+                </div>
+            </div>
+
+
         </div>
 
-        <div class="chat-messages" id="chatMessages">
-            <div class="system-message">
-                Welcome to OHERO! Connect to start chatting with the AI assistant.
+        <!-- Main chat area -->
+        <div class="main-content">
+            <div class="chat-header">
+                <h1 id="currentChannelName"># Default Team</h1>
+                <div class="header-info">
+                    <span id="channelDescription">Default channel for operational events</span>
+                </div>
             </div>
-        </div>
 
-        <div class="chat-input-container">
-            <div class="input-group">
-                <input type="text" id="messageInput" placeholder="Type your message here..." disabled>
-                <button id="sendButton" disabled>Send</button>
+            <div class="chat-messages" id="chatMessages">
+                <div class="system-message">
+                    Welcome to OHERO! Connecting to the AI assistant...
+                </div>
             </div>
-            <div class="connection-controls">
-                <button id="connectButton">Connect</button>
-                <button id="disconnectButton" disabled>Disconnect</button>
+
+            <div class="chat-input-container">
+                <div class="thread-indicator" id="threadIndicator" style="display: none;">
+                    <span>Replying to thread</span>
+                    <button id="cancelReplyBtn">✕</button>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="messageInput" placeholder="Type your message here..." disabled>
+                    <button id="sendButton" disabled>Send</button>
+                </div>
             </div>
         </div>
     </div>

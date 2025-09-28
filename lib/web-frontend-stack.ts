@@ -101,7 +101,7 @@ export class WebFrontendStack extends cdk.Stack {
     this.compileTypeScript(frontendDir, buildDir);
 
     // Copy static files
-    const staticFiles = ['index.html', 'styles.css'];
+    const staticFiles = ['index.html', 'styles.css', 'ohero-icon-48.png'];
     staticFiles.forEach(file => {
       const sourcePath = path.resolve(frontendDir, file);
       const destPath = path.resolve(buildDir, file);

@@ -307,11 +307,24 @@ export class OpsOrchestrationStack extends cdk.Stack {
       `https://${this.webSocketApi.apiId}.execute-api.${cdk.Stack.of(this).region}.amazonaws.com/${webSocketStage.stageName}`
     );
 
+    // Update HandleWebChatComm function with WebSocket API endpoint
+    handleWebChatCommFunction.addEnvironment(
+      'WEBSOCKET_API_ENDPOINT',
+      `https://${this.webSocketApi.apiId}.execute-api.${cdk.Stack.of(this).region}.amazonaws.com/${webSocketStage.stageName}`
+    );
+
     // Grant WebSocket API permissions to invoke the function
     handleWebChatCommFunction.grantInvoke(new iam.ServicePrincipal('apigateway.amazonaws.com'));
 
     // Grant WebChatMe function permission to post to WebSocket connections
     webChatMeFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['execute-api:ManageConnections'],
+      resources: [`arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.webSocketApi.apiId}/*/*`]
+    }));
+
+    // Grant HandleWebChatComm function permission to post to WebSocket connections
+    handleWebChatCommFunction.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['execute-api:ManageConnections'],
       resources: [`arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.webSocketApi.apiId}/*/*`]

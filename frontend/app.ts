@@ -9,7 +9,9 @@ interface WebChatMessage {
     text: string;
     userId: string;
     timestamp: string;
+    threadId?: string;
     messageType: string;
+    channel?: string;
 }
 
 interface IncomingMessage {
@@ -17,7 +19,34 @@ interface IncomingMessage {
     text?: string;
     message?: string;
     content?: string;
-    data?: any; // For teamChannels and other structured data
+    data?: any;
+    threadId?: string;
+    timestamp?: string;
+    channel?: string;
+    messageId?: string;
+}
+
+interface TeamChannel {
+    PK: string;
+    ChannelName: string;
+    SlackChannelId: string;
+}
+
+interface ChatMessage {
+    id: string;
+    text: string;
+    author: string;
+    timestamp: string;
+    threadId: string;
+    channel: string;
+    isReply: boolean;
+    parentThreadId?: string;
+}
+
+interface MessageThread {
+    rootMessage: ChatMessage;
+    replies: ChatMessage[];
+    isExpanded: boolean;
 }
 
 class OheroWebChat {
@@ -29,18 +58,33 @@ class OheroWebChat {
     private config: OheroConfig | null = null;
     private heartbeatInterval: NodeJS.Timeout | null = null;
     private readonly heartbeatIntervalMs: number = 8 * 60 * 1000; // 8 minutes
+
+    // Channel and message management
+    private channels: Map<string, TeamChannel> = new Map();
+    private slackChannelMapping: Map<string, string> = new Map(); // slackChannelId -> teamId
+    private currentChannel: string = 'default';
+    private messages: Map<string, ChatMessage[]> = new Map(); // channelId -> messages
+    private threads: Map<string, MessageThread> = new Map(); // threadId -> thread
+    private replyingToThread: string | null = null;
+
     private elements: {
         connectionStatus: HTMLElement;
         chatMessages: HTMLElement;
         messageInput: HTMLInputElement;
         sendButton: HTMLButtonElement;
-        connectButton: HTMLButtonElement;
-        disconnectButton: HTMLButtonElement;
+
+        channelsList: HTMLElement;
+        currentChannelName: HTMLElement;
+        channelDescription: HTMLElement;
+        threadIndicator: HTMLElement;
+        cancelReplyBtn: HTMLButtonElement;
+        refreshChannelsBtn: HTMLButtonElement;
     };
 
     constructor() {
         this.elements = this.initializeElements();
         this.attachEventListeners();
+        this.initializeDefaultChannel();
         this.loadConfiguration();
     }
 
@@ -58,15 +102,34 @@ class OheroWebChat {
             chatMessages: getElement('chatMessages'),
             messageInput: getElement<HTMLInputElement>('messageInput'),
             sendButton: getElement<HTMLButtonElement>('sendButton'),
-            connectButton: getElement<HTMLButtonElement>('connectButton'),
-            disconnectButton: getElement<HTMLButtonElement>('disconnectButton')
+
+            channelsList: getElement('channelsList'),
+            currentChannelName: getElement('currentChannelName'),
+            channelDescription: getElement('channelDescription'),
+            threadIndicator: getElement('threadIndicator'),
+            cancelReplyBtn: getElement<HTMLButtonElement>('cancelReplyBtn'),
+            refreshChannelsBtn: getElement<HTMLButtonElement>('refreshChannelsBtn')
         };
     }
 
+    private initializeDefaultChannel(): void {
+        // Initialize default channel
+        const defaultChannel: TeamChannel = {
+            PK: 'default',
+            ChannelName: 'Default Team',
+            SlackChannelId: 'default'
+        };
+
+        this.channels.set('default', defaultChannel);
+        this.messages.set('default', []);
+        this.currentChannel = 'default';
+    }
+
     private attachEventListeners(): void {
-        this.elements.connectButton.addEventListener('click', () => this.connect());
-        this.elements.disconnectButton.addEventListener('click', () => this.disconnect());
+
         this.elements.sendButton.addEventListener('click', () => this.sendMessage());
+        this.elements.refreshChannelsBtn.addEventListener('click', () => this.requestTeamChannels());
+        this.elements.cancelReplyBtn.addEventListener('click', () => this.cancelReply());
 
         this.elements.messageInput.addEventListener('keypress', (e: KeyboardEvent) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -79,6 +142,18 @@ class OheroWebChat {
         this.elements.messageInput.addEventListener('focus', () => {
             if (!this.isConnected) {
                 this.elements.messageInput.blur();
+            }
+        });
+
+        // Channel selection
+        this.elements.channelsList.addEventListener('click', (e: Event) => {
+            const target = e.target as HTMLElement;
+            const channelItem = target.closest('.channel-item') as HTMLElement;
+            if (channelItem) {
+                const channelId = channelItem.dataset.channelId;
+                if (channelId) {
+                    this.switchChannel(channelId);
+                }
             }
         });
     }
@@ -103,6 +178,11 @@ class OheroWebChat {
             this.initializeWebSocketUrl();
             this.updateUI();
 
+            // Auto-connect after configuration is loaded
+            setTimeout(() => {
+                this.connect();
+            }, 500);
+
         } catch (error) {
             console.error('Failed to load configuration:', error);
             this.addSystemMessage('Failed to load configuration. Using defaults.');
@@ -114,6 +194,11 @@ class OheroWebChat {
                 teamManagementTableName: ''
             };
             this.updateUI();
+
+            // Still try to auto-connect even with fallback config
+            setTimeout(() => {
+                this.connect();
+            }, 500);
         }
     }
 
@@ -161,6 +246,11 @@ class OheroWebChat {
                 this.updateConnectionStatus('connected');
                 this.addSystemMessage('Connected to OHERO successfully!');
                 this.startHeartbeat();
+
+                // Auto-request team channels on connection
+                setTimeout(() => {
+                    this.requestTeamChannels();
+                }, 1000);
             };
 
             this.websocket.onmessage = (event: MessageEvent) => {
@@ -234,22 +324,43 @@ class OheroWebChat {
         }
 
         try {
+            // Generate threadId based on whether this is a reply or new message
+            let threadId: string;
+            if (this.replyingToThread) {
+                threadId = this.replyingToThread;
+            } else {
+                // New root message - use timestamp as threadId
+                threadId = (Date.now() / 1000).toString();
+            }
+
             const message: WebChatMessage = {
                 action: 'message',
                 text: messageText,
-                userId: 'web-user',
+                userId: 'webchat',
                 timestamp: new Date().toISOString(),
-                messageType: 'message'
+                threadId: threadId,
+                messageType: 'message',
+                channel: this.currentChannel
             };
 
             console.log('Sending message:', message);
             this.websocket.send(JSON.stringify(message));
 
-            // Add user message to chat
-            this.addMessage(messageText, 'user');
+            // Add user message to local chat immediately
+            this.addChatMessage({
+                id: `msg-${Date.now()}`,
+                text: messageText,
+                author: 'You',
+                timestamp: new Date().toISOString(),
+                threadId: threadId,
+                channel: this.currentChannel,
+                isReply: !!this.replyingToThread,
+                parentThreadId: this.replyingToThread || undefined
+            });
 
-            // Clear input
+            // Clear input and reply state
             this.elements.messageInput.value = '';
+            this.cancelReply();
 
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -260,6 +371,7 @@ class OheroWebChat {
     private handleIncomingMessage(data: string): void {
         try {
             const message: IncomingMessage = JSON.parse(data);
+            console.log('Raw incoming message:', data);
             console.log('Parsed incoming message:', message);
 
             // Handle different message types
@@ -268,71 +380,385 @@ class OheroWebChat {
             } else if (message.type === 'error') {
                 this.addSystemMessage('Error: ' + (message.text || message.message || 'Unknown error'));
             } else if (message.type === 'teamChannels') {
+                console.log('Handling team channels response...');
                 this.handleTeamChannelsResponse(message);
             } else {
-                // Assume it's an assistant response
+                // Handle regular chat messages from backend
                 const text = message.text || message.message || message.content || JSON.stringify(message);
-                this.addMessage(text, 'assistant');
+                const threadId = message.threadId || (Date.now() / 1000).toString();
+
+                // Handle channel mapping - could be team ID (fin01) or Slack channel ID (C094YKMH56K)
+                let channel = message.channel || 'default';
+
+                console.log('Original channel from message:', message.channel);
+                console.log('Available channels:', Array.from(this.channels.keys()));
+                console.log('Slack channel mappings:', Array.from(this.slackChannelMapping.entries()));
+
+                // If it's a Slack channel ID, map it to team ID
+                if (channel !== 'default' && this.slackChannelMapping.has(channel)) {
+                    const teamId = this.slackChannelMapping.get(channel);
+                    console.log('Mapped Slack channel ID to team ID:', channel, '->', teamId);
+                    channel = teamId!;
+                } else if (channel !== 'default' && !this.channels.has(channel)) {
+                    console.log('Unknown channel, defaulting:', channel);
+                    channel = 'default';
+                }
+
+                // Determine if this is a reply based on existing thread
+                const existingThread = this.threads.get(threadId);
+                const isReply = !!existingThread;
+
+                console.log('Processing backend message:', {
+                    threadId,
+                    existingThread: !!existingThread,
+                    isReply,
+                    channel,
+                    currentChannel: this.currentChannel
+                });
+
+                this.addChatMessage({
+                    id: message.messageId || `msg-${Date.now()}`,
+                    text: text,
+                    author: 'OHERO Assistant',
+                    timestamp: message.timestamp || new Date().toISOString(),
+                    threadId: threadId,
+                    channel: channel,
+                    isReply: isReply,
+                    parentThreadId: isReply ? threadId : undefined
+                });
             }
 
         } catch (error) {
             console.error('Failed to parse incoming message:', error);
             // Display raw message if parsing fails
-            this.addMessage(data, 'assistant');
+            this.addSystemMessage('Failed to parse message: ' + data);
         }
     }
 
     private handleTeamChannelsResponse(message: any): void {
         try {
-            const teamChannels = message.data || [];
-            console.log('Received team channels:', teamChannels);
+            const teamChannels: TeamChannel[] = message.data || [];
+            console.log('Received team channels response:', message);
+            console.log('Parsed team channels:', teamChannels);
 
-            // Store team channels for future use
-            (window as any).OHERO_TEAM_CHANNELS = teamChannels;
+            // Clear existing channels and mappings except default
+            this.channels.clear();
+            this.slackChannelMapping.clear();
+            this.initializeDefaultChannel();
 
-            // Display team channels in chat for demo purposes
-            if (teamChannels.length > 0) {
-                const channelList = teamChannels.map((channel: any) =>
-                    `• ${channel.ChannelName} (${channel.SlackChannelId})`
-                ).join('\n');
+            // Add received channels and create Slack channel ID mapping
+            teamChannels.forEach(channel => {
+                console.log('Adding channel:', channel);
+                this.channels.set(channel.PK, channel);
 
-                this.addSystemMessage(`Team Channels Retrieved (${teamChannels.length} channels):\n${channelList}`);
-            } else {
-                this.addSystemMessage('No team channels found.');
-            }
+                // Create separate mapping for Slack channel ID lookup (don't add to channels map)
+                if (channel.SlackChannelId) {
+                    console.log('Mapping Slack channel ID:', channel.SlackChannelId, 'to team:', channel.PK);
+                    this.slackChannelMapping.set(channel.SlackChannelId, channel.PK);
+                }
 
-            // Dispatch custom event for other parts of the application
-            const event = new CustomEvent('teamChannelsReceived', {
-                detail: { teamChannels }
+                if (!this.messages.has(channel.PK)) {
+                    this.messages.set(channel.PK, []);
+                }
             });
-            window.dispatchEvent(event);
+
+            console.log('Final channels map:', this.channels);
+            console.log('Slack channel mapping:', this.slackChannelMapping);
+
+            // Update UI
+            this.updateChannelsList();
+            this.addSystemMessage(`Loaded ${teamChannels.length} team channels from server`);
 
         } catch (error) {
             console.error('Error handling team channels response:', error);
-            this.addSystemMessage('Error processing team channels response.');
+            this.addSystemMessage('Error processing team channels response: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     }
 
-    private addMessage(text: string, sender: 'user' | 'assistant'): void {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender}`;
+    private updateChannelsList(): void {
+        const channelsList = this.elements.channelsList;
+        channelsList.innerHTML = '';
 
-        const textDiv = document.createElement('div');
-        textDiv.textContent = text;
-        messageDiv.appendChild(textDiv);
+        // Add default channel first
+        const defaultChannel = this.channels.get('default');
+        if (defaultChannel) {
+            const channelElement = this.createChannelElement('default', defaultChannel);
+            channelsList.appendChild(channelElement);
+        }
 
-        const timestampDiv = document.createElement('div');
-        timestampDiv.className = 'message-timestamp';
-        timestampDiv.textContent = new Date().toLocaleTimeString();
-        messageDiv.appendChild(timestampDiv);
+        // Add other channels
+        this.channels.forEach((channel, channelId) => {
+            if (channelId !== 'default') {
+                const channelElement = this.createChannelElement(channelId, channel);
+                channelsList.appendChild(channelElement);
+            }
+        });
+    }
 
-        this.elements.chatMessages.appendChild(messageDiv);
+    private createChannelElement(channelId: string, channel: TeamChannel): HTMLElement {
+        const channelDiv = document.createElement('div');
+        channelDiv.className = `channel-item ${channelId === this.currentChannel ? 'active' : ''}`;
+        channelDiv.dataset.channelId = channelId;
+
+        const hashSpan = document.createElement('span');
+        hashSpan.className = 'channel-hash';
+        hashSpan.textContent = '#';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'channel-name';
+        nameSpan.textContent = channel.ChannelName;
+
+        channelDiv.appendChild(hashSpan);
+        channelDiv.appendChild(nameSpan);
+
+        return channelDiv;
+    }
+
+    private switchChannel(channelId: string): void {
+        if (channelId === this.currentChannel) return;
+
+        const channel = this.channels.get(channelId);
+        if (!channel) return;
+
+        // Update current channel
+        this.currentChannel = channelId;
+
+        // Update UI
+        this.updateChannelsList();
+        this.updateChannelHeader(channel);
+        this.renderMessages();
+        this.cancelReply();
+    }
+
+    private updateChannelHeader(channel: TeamChannel): void {
+        this.elements.currentChannelName.textContent = `# ${channel.ChannelName}`;
+        this.elements.channelDescription.textContent =
+            channel.PK === 'default'
+                ? 'Default channel for operational events'
+                : `Team channel: ${channel.SlackChannelId}`;
+    }
+
+    private addChatMessage(message: ChatMessage): void {
+        console.log('Adding chat message:', message);
+        console.log('Message channel:', message.channel, 'Current channel:', this.currentChannel);
+
+        // Ensure the channel exists in messages map
+        if (!this.messages.has(message.channel)) {
+            console.log('Creating new message list for channel:', message.channel);
+            this.messages.set(message.channel, []);
+        }
+
+        // Add to messages for the channel
+        const channelMessages = this.messages.get(message.channel) || [];
+        channelMessages.push(message);
+        this.messages.set(message.channel, channelMessages);
+        console.log('Channel', message.channel, 'now has', channelMessages.length, 'messages');
+
+        // Handle threading
+        if (message.isReply && message.parentThreadId) {
+            // This is a reply to an existing thread
+            let thread = this.threads.get(message.parentThreadId);
+            console.log('Adding reply to thread:', message.parentThreadId, 'Thread found:', !!thread);
+            if (thread) {
+                thread.replies.push(message);
+                console.log('Thread now has', thread.replies.length, 'replies');
+            }
+        } else {
+            // This is a root message, create a new thread
+            console.log('Creating new thread:', message.threadId);
+            this.threads.set(message.threadId, {
+                rootMessage: message,
+                replies: [],
+                isExpanded: false
+            });
+        }
+
+        // Re-render messages if this is for the current channel
+        if (message.channel === this.currentChannel) {
+            console.log('Re-rendering messages for current channel:', this.currentChannel);
+            this.renderMessages();
+        } else {
+            console.log('Message for different channel:', message.channel, 'current:', this.currentChannel);
+            console.log('Available channels:', Array.from(this.channels.keys()));
+        }
+
+        // Force a UI refresh to ensure thread counts are updated
+        this.refreshCurrentChannelView();
+    }
+
+    private refreshCurrentChannelView(): void {
+        // Only refresh if the message is for the current channel
+        if (this.currentChannel) {
+            console.log('Refreshing current channel view:', this.currentChannel);
+            this.renderMessages();
+        }
+    }
+
+    private renderMessages(): void {
+        const messagesContainer = this.elements.chatMessages;
+        messagesContainer.innerHTML = '';
+
+        const channelMessages = this.messages.get(this.currentChannel) || [];
+
+        // Group messages by thread
+        const rootMessages = channelMessages.filter(msg => !msg.isReply);
+
+        rootMessages.forEach(rootMessage => {
+            const thread = this.threads.get(rootMessage.threadId);
+            if (thread) {
+                this.renderMessageThread(thread, messagesContainer);
+            }
+        });
+
         this.scrollToBottom();
+    }
+
+    private renderMessageThread(thread: MessageThread, container: HTMLElement): void {
+        // Render root message
+        const rootMessageElement = this.createMessageElement(thread.rootMessage, false);
+        container.appendChild(rootMessageElement);
+
+        // Render replies if any and if expanded
+        if (thread.replies.length > 0) {
+            if (thread.isExpanded) {
+                const repliesContainer = document.createElement('div');
+                repliesContainer.className = 'thread-replies';
+
+                thread.replies.forEach(reply => {
+                    const replyElement = this.createMessageElement(reply, true);
+                    replyElement.classList.add('thread-reply');
+                    repliesContainer.appendChild(replyElement);
+                });
+
+                container.appendChild(repliesContainer);
+
+                // Add thread actions container with "Hide replies" and "Reply in thread" buttons
+                const threadActionsContainer = document.createElement('div');
+                threadActionsContainer.className = 'thread-actions';
+
+                const hideRepliesBtn = document.createElement('button');
+                hideRepliesBtn.className = 'hide-replies-btn';
+                hideRepliesBtn.textContent = 'Hide replies';
+                hideRepliesBtn.addEventListener('click', () => {
+                    thread.isExpanded = false;
+                    this.renderMessages();
+                });
+
+                const replyToThreadBtn = document.createElement('button');
+                replyToThreadBtn.className = 'reply-to-thread-btn';
+                replyToThreadBtn.textContent = '💬 Reply in thread';
+                replyToThreadBtn.title = 'Reply in thread';
+                replyToThreadBtn.addEventListener('click', () => {
+                    this.startReply(thread.rootMessage.threadId);
+                });
+
+                threadActionsContainer.appendChild(hideRepliesBtn);
+                threadActionsContainer.appendChild(replyToThreadBtn);
+                container.appendChild(threadActionsContainer);
+            } else {
+                // Show "X replies" button
+                const showRepliesBtn = document.createElement('button');
+                showRepliesBtn.className = 'show-replies-btn';
+                showRepliesBtn.textContent = `${thread.replies.length} ${thread.replies.length === 1 ? 'reply' : 'replies'}`;
+                showRepliesBtn.addEventListener('click', () => {
+                    thread.isExpanded = true;
+                    this.renderMessages();
+                });
+                container.appendChild(showRepliesBtn);
+            }
+        }
+    }
+
+    private createMessageElement(message: ChatMessage, isReply: boolean): HTMLElement {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+        messageDiv.dataset.messageId = message.id;
+        messageDiv.dataset.threadId = message.threadId;
+
+        // Avatar
+        const avatar = document.createElement('div');
+        avatar.className = `message-avatar ${message.author === 'You' ? 'user' : 'assistant'}`;
+        avatar.textContent = message.author === 'You' ? 'Y' : '';
+
+        // Content container
+        const content = document.createElement('div');
+        content.className = 'message-content';
+
+        // Header with author and timestamp
+        const header = document.createElement('div');
+        header.className = 'message-header';
+
+        const author = document.createElement('span');
+        author.className = 'message-author';
+        author.textContent = message.author;
+
+        const timestamp = document.createElement('span');
+        timestamp.className = 'message-timestamp';
+        timestamp.textContent = new Date(message.timestamp).toLocaleTimeString();
+
+        header.appendChild(author);
+        header.appendChild(timestamp);
+
+        // Message text
+        const text = document.createElement('div');
+        text.className = 'message-text';
+        text.textContent = message.text;
+
+        content.appendChild(header);
+        content.appendChild(text);
+
+        // Message actions (reply button)
+        if (!isReply) {
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
+
+            const replyBtn = document.createElement('button');
+            replyBtn.className = 'message-action-btn';
+            replyBtn.textContent = '💬';
+            replyBtn.title = 'Reply in thread';
+            replyBtn.addEventListener('click', () => {
+                this.startReply(message.threadId);
+            });
+
+            actions.appendChild(replyBtn);
+            messageDiv.appendChild(actions);
+        }
+
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(content);
+
+        return messageDiv;
+    }
+
+    private startReply(threadId: string): void {
+        this.replyingToThread = threadId;
+        this.elements.threadIndicator.style.display = 'flex';
+        this.elements.messageInput.focus();
+        this.elements.messageInput.placeholder = 'Reply to thread...';
+    }
+
+    private cancelReply(): void {
+        this.replyingToThread = null;
+        this.elements.threadIndicator.style.display = 'none';
+        this.elements.messageInput.placeholder = 'Type your message here...';
+    }
+
+    private addMessage(text: string, sender: 'user' | 'assistant'): void {
+        // Legacy method - convert to new message format
+        this.addChatMessage({
+            id: `msg-${Date.now()}`,
+            text: text,
+            author: sender === 'user' ? 'You' : 'OHERO Assistant',
+            timestamp: new Date().toISOString(),
+            threadId: (Date.now() / 1000).toString(),
+            channel: this.currentChannel,
+            isReply: false
+        });
     }
 
     private addSystemMessage(text: string): void {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'message system';
+        messageDiv.className = 'system-message';
         messageDiv.textContent = text;
 
         this.elements.chatMessages.appendChild(messageDiv);
@@ -351,13 +777,9 @@ class OheroWebChat {
 
     private updateUI(): void {
         const connected = this.isConnected;
-        const connecting = this.websocket && this.websocket.readyState === WebSocket.CONNECTING;
-        const configLoaded = this.config !== null;
 
         this.elements.messageInput.disabled = !connected;
         this.elements.sendButton.disabled = !connected;
-        this.elements.connectButton.disabled = connected || !!connecting || !configLoaded;
-        this.elements.disconnectButton.disabled = !connected && !connecting;
 
         if (connected) {
             this.elements.messageInput.focus();
@@ -405,8 +827,9 @@ class OheroWebChat {
                 timestamp: new Date().toISOString()
             };
 
-            console.log('Requesting team channels...');
+            console.log('Requesting team channels...', requestMessage);
             this.websocket.send(JSON.stringify(requestMessage));
+            this.addSystemMessage('Requesting team channels from server...');
 
         } catch (error) {
             console.error('Failed to request team channels:', error);

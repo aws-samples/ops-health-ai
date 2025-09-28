@@ -12,6 +12,7 @@ apigateway_client = None  # Will be initialized when needed
 connections_table_name = os.environ.get('CONNECTIONS_TABLE_NAME', 'WebSocketConnections')
 websocket_api_endpoint = os.environ.get('WEBSOCKET_API_ENDPOINT')
 
+
 def get_apigateway_client():
     """Initialize API Gateway client with WebSocket endpoint"""
     global apigateway_client
@@ -19,6 +20,8 @@ def get_apigateway_client():
         apigateway_client = boto3.client('apigatewaymanagementapi',
             endpoint_url=websocket_api_endpoint)
     return apigateway_client
+
+
 
 def lambda_handler(event, context):
     """Send messages to all active WebSocket connections"""
@@ -34,6 +37,9 @@ def lambda_handler(event, context):
     message = event.get('message', {})
     thread_id = event.get('threadId')
 
+    # Extract channel from message (if present) and pass it through
+    channel = message.get('channel')
+
     # Generate thread ID if not provided (Slack timestamp format)
     if not thread_id:
         # Generate Slack-compatible timestamp format: seconds.microseconds
@@ -48,6 +54,10 @@ def lambda_handler(event, context):
         'timestamp': datetime.utcnow().isoformat() + 'Z',
         'messageId': str(uuid.uuid4())
     }
+
+    # Add channel information if present
+    if channel:
+        message_with_metadata['channel'] = channel
 
     try:
         # Get all active WebSocket connections using DynamoDB client
@@ -158,6 +168,9 @@ def handle_test_mode(event, context):
     message = event.get('message', {})
     thread_id = event.get('threadId')
 
+    # Extract channel for test mode too
+    channel = message.get('channel')
+
     # If no message provided, use test data
     if not message:
         message = {
@@ -199,6 +212,10 @@ def handle_test_mode(event, context):
         'timestamp': datetime.utcnow().isoformat() + 'Z',
         'messageId': f"msg-{int(time.time() * 1000000)}"
     }
+
+    # Add channel information if present
+    if channel:
+        message_with_metadata['channel'] = channel
 
     # Mock WebSocket connections for testing
     mock_connections = [
