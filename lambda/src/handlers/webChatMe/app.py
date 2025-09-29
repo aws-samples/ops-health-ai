@@ -2,6 +2,7 @@ import os
 import json
 import boto3
 import uuid
+import time
 from datetime import datetime
 
 # Initialize AWS clients
@@ -28,10 +29,16 @@ def lambda_handler(event, context):
 
     context.log("Incoming Event: " + json.dumps(event) + "\n")
 
-    # TESTING MODE: Use hardcoded data if no WebSocket endpoint is configured
+    # Validate WebSocket endpoint configuration
     if not websocket_api_endpoint:
-        context.log("TESTING MODE: WebSocket API endpoint not configured, using mock data")
-        return handle_test_mode(event, context)
+        context.log("ERROR: WebSocket API endpoint not configured")
+        return {
+            'statusCode': 500,
+            'body': {
+                'error': 'WebSocket API endpoint not configured',
+                'threadId': event.get('threadId')
+            }
+        }
 
     # Extract message and thread info from event
     message = event.get('message', {})
@@ -48,13 +55,11 @@ def lambda_handler(event, context):
                 thread_id = thread_id['S']
             else:
                 # DynamoDB object but not string type - generate new threadId
-                import time
                 current_time = time.time()
                 thread_id = f"{current_time:.6f}"
         # If it's already a string, keep it as-is
     else:
         # Generate thread ID if not provided (Slack timestamp format)
-        import time
         current_time = time.time()
         thread_id = f"{current_time:.6f}"
 
@@ -152,7 +157,7 @@ def lambda_handler(event, context):
         }
 
 def truncate_message(message_obj, max_length=4000):
-    """Truncate message content if too long (similar to SlackMe function)"""
+    """Truncate message content if too long"""
     if isinstance(message_obj, dict) and 'text' in message_obj:
         text = message_obj['text']
         if len(text) > max_length:
@@ -172,100 +177,3 @@ def truncate_message(message_obj, max_length=4000):
 
     return message_obj
 
-def handle_test_mode(event, context):
-    """Handle testing mode with hardcoded data when WebSocket API is not available"""
-
-    # Use provided event data or fallback to test data
-    message = event.get('message', {})
-    thread_id = event.get('threadId')
-
-    # Extract channel for test mode too
-    channel = message.get('channel')
-
-    # Normalize thread ID - handle DynamoDB format {"S": "value"} or plain string
-    if thread_id:
-        if isinstance(thread_id, dict):
-            # Handle DynamoDB format - extract string value or generate new if not string type
-            if 'S' in thread_id:
-                thread_id = thread_id['S']
-            else:
-                # DynamoDB object but not string type - generate new threadId
-                import time
-                current_time = time.time()
-                thread_id = f"{current_time:.6f}"
-
-    # If no message provided, use test data
-    if not message:
-        message = {
-            "type": "health_event",
-            "title": "TEST: Request for triage for a new AWS Health event",
-            "eventType": "EC2_INSTANCE_RETIREMENT",
-            "status": "open",
-            "startTime": "2024-01-15T10:30:00Z",
-            "description": "TEST: Your EC2 instance i-1234567890abcdef0 in us-east-1 will be retired on 2024-01-20. Please migrate your workload.",
-            "actions": [
-                {
-                    "type": "button",
-                    "text": "Accept event",
-                    "action": "accept",
-                    "url": "https://api.example.com/event-callback?status=SUCCESS&taskToken=test123",
-                    "style": "primary"
-                },
-                {
-                    "type": "button",
-                    "text": "Discharge event",
-                    "action": "discharge",
-                    "url": "https://api.example.com/event-callback?status=FAILURE&taskToken=test123",
-                    "style": "danger"
-                }
-            ]
-        }
-
-    # Generate thread ID if not provided (Slack timestamp format)
-    if not thread_id:
-        # Generate Slack-compatible timestamp format: seconds.microseconds
-        import time
-        current_time = time.time()
-        thread_id = f"{current_time:.6f}"
-
-    # Add metadata to message
-    message_with_metadata = {
-        **message,
-        'threadId': thread_id,
-        'timestamp': datetime.utcnow().isoformat() + 'Z',
-        'messageId': f"msg-{int(time.time() * 1000000)}"
-    }
-
-    # Add channel information if present
-    if channel:
-        message_with_metadata['channel'] = channel
-
-    # Mock WebSocket connections for testing
-    mock_connections = [
-        {"connectionId": "test-conn-001", "userId": "user1"},
-        {"connectionId": "test-conn-002", "userId": "user2"},
-        {"connectionId": "test-conn-003", "userId": "user3"}
-    ]
-
-    context.log("TEST MODE: Simulating broadcast to connections:")
-    for conn in mock_connections:
-        context.log(f"  -> Would send to connection: {conn['connectionId']} (user: {conn.get('userId', 'anonymous')})")
-
-    context.log(f"TEST MODE: Message that would be sent:")
-    context.log(json.dumps(message_with_metadata, indent=2))
-
-    # Return test response
-    return {
-        'statusCode': 200,
-        'body': {
-            'threadId': thread_id,
-            'messageId': message_with_metadata['messageId'],
-            'timestamp': message_with_metadata['timestamp'],
-            'successfulSends': len(mock_connections),
-            'failedConnections': 0,
-            'totalConnections': len(mock_connections),
-            'testMode': True,
-            'mockConnections': [conn['connectionId'] for conn in mock_connections],
-            'messagePreview': message_with_metadata
-        }
-    }

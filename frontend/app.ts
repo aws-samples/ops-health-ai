@@ -4,6 +4,54 @@ interface OheroConfig {
     teamManagementTableName: string;
 }
 
+// Utility functions
+class MessageUtils {
+    static extractText(message: IncomingMessage): string {
+        return message.text || message.message || message.content || JSON.stringify(message);
+    }
+
+    static isStructuredEvent(message: IncomingMessage): boolean {
+        return ['health_event', 'sechub_event', 'health_event_update', 'event_status'].includes(message.type || '');
+    }
+
+    static generateThreadId(): string {
+        return (Date.now() / 1000).toString();
+    }
+
+    static generateMessageId(): string {
+        return `msg-${Date.now()}`;
+    }
+}
+
+class ErrorHandler {
+    static handle(error: unknown, context: string, userMessage: string, callback?: (msg: string) => void): void {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`${context}:`, error);
+
+        if (callback) {
+            callback(`${userMessage}: ${errorMessage}`);
+        }
+    }
+}
+
+class ChannelUtils {
+    static createDefaultChannel(channelId: string): TeamChannel {
+        return {
+            PK: channelId,
+            ChannelName: 'Default Team',
+            SlackChannelId: channelId
+        };
+    }
+
+    static createChannelFromData(data: any): TeamChannel {
+        return {
+            PK: data.PK || '',
+            ChannelName: data.ChannelName || '',
+            SlackChannelId: data.SlackChannelId || ''
+        };
+    }
+}
+
 interface WebChatMessage {
     action: string;
     text: string;
@@ -115,6 +163,19 @@ class OheroWebChat {
     }
 
     private initializeElements(): typeof this.elements {
+        const elementConfig = {
+            connectionStatus: 'connectionStatus',
+            chatMessages: 'chatMessages',
+            messageInput: 'messageInput',
+            sendButton: 'sendButton',
+            channelsList: 'channelsList',
+            currentChannelName: 'currentChannelName',
+            channelDescription: 'channelDescription',
+            threadIndicator: 'threadIndicator',
+            cancelReplyBtn: 'cancelReplyBtn',
+            refreshChannelsBtn: 'refreshChannelsBtn'
+        };
+
         const getElement = <T extends HTMLElement>(id: string): T => {
             const element = document.getElementById(id) as T;
             if (!element) {
@@ -123,33 +184,50 @@ class OheroWebChat {
             return element;
         };
 
-        return {
-            connectionStatus: getElement('connectionStatus'),
-            chatMessages: getElement('chatMessages'),
-            messageInput: getElement<HTMLInputElement>('messageInput'),
-            sendButton: getElement<HTMLButtonElement>('sendButton'),
-
-            channelsList: getElement('channelsList'),
-            currentChannelName: getElement('currentChannelName'),
-            channelDescription: getElement('channelDescription'),
-            threadIndicator: getElement('threadIndicator'),
-            cancelReplyBtn: getElement<HTMLButtonElement>('cancelReplyBtn'),
-            refreshChannelsBtn: getElement<HTMLButtonElement>('refreshChannelsBtn')
-        };
+        return Object.entries(elementConfig).reduce((acc, [key, id]) => {
+            acc[key as keyof typeof this.elements] = getElement(id);
+            return acc;
+        }, {} as any);
     }
 
     private initializeDefaultChannel(): void {
-        // Initialize default channel with dummy channel ID
-        const defaultChannel: TeamChannel = {
-            PK: this.DEFAULT_CHANNEL_ID,
-            ChannelName: 'Default Team',
-            SlackChannelId: this.DEFAULT_CHANNEL_ID
-        };
-
-        this.channels.set(this.DEFAULT_CHANNEL_ID, defaultChannel);
-        this.messages.set(this.DEFAULT_CHANNEL_ID, []);
-        this.unreadCounts.set(this.DEFAULT_CHANNEL_ID, 0);
+        const defaultChannel = ChannelUtils.createDefaultChannel(this.DEFAULT_CHANNEL_ID);
+        this.ensureChannelExists(this.DEFAULT_CHANNEL_ID, defaultChannel);
         this.currentChannel = this.DEFAULT_CHANNEL_ID;
+    }
+
+    private ensureChannelExists(channelId: string, channel?: TeamChannel): void {
+        if (!this.channels.has(channelId) && channel) {
+            this.channels.set(channelId, channel);
+        }
+
+        if (!this.messages.has(channelId)) {
+            this.messages.set(channelId, []);
+        }
+
+        if (!this.unreadCounts.has(channelId)) {
+            this.unreadCounts.set(channelId, 0);
+        }
+    }
+
+    private resolveChannelId(messageChannel?: string): string {
+        let channel = messageChannel || this.DEFAULT_CHANNEL_ID;
+
+        console.log('Original channel from message:', messageChannel);
+        console.log('Available channels:', Array.from(this.channels.keys()));
+        console.log('Slack channel mappings:', Array.from(this.slackChannelMapping.entries()));
+
+        // If it's a Slack channel ID, map it to team ID
+        if (channel !== this.DEFAULT_CHANNEL_ID && this.slackChannelMapping.has(channel)) {
+            const teamId = this.slackChannelMapping.get(channel);
+            console.log('Mapped Slack channel ID to team ID:', channel, '->', teamId);
+            channel = teamId!;
+        } else if (channel !== this.DEFAULT_CHANNEL_ID && !this.channels.has(channel)) {
+            console.log('Unknown channel, defaulting:', channel);
+            channel = this.DEFAULT_CHANNEL_ID;
+        }
+
+        return channel;
     }
 
     private attachEventListeners(): void {
@@ -211,8 +289,8 @@ class OheroWebChat {
             }, 500);
 
         } catch (error) {
-            console.error('Failed to load configuration:', error);
-            this.addSystemMessage('Failed to load configuration. Using defaults.');
+            ErrorHandler.handle(error, 'Configuration loading', 'Failed to load configuration. Using defaults',
+                (msg) => this.addSystemMessage(msg));
 
             // Fallback to default config
             this.config = {
@@ -305,9 +383,9 @@ class OheroWebChat {
             };
 
         } catch (error) {
-            console.error('Failed to create WebSocket connection:', error);
             this.updateConnectionStatus('disconnected');
-            this.addSystemMessage('Failed to connect: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            ErrorHandler.handle(error, 'WebSocket connection', 'Failed to connect',
+                (msg) => this.addSystemMessage(msg));
         }
     }
 
@@ -351,14 +429,7 @@ class OheroWebChat {
         }
 
         try {
-            // Generate threadId based on whether this is a reply or new message
-            let threadId: string;
-            if (this.replyingToThread) {
-                threadId = this.replyingToThread;
-            } else {
-                // New root message - use timestamp as threadId
-                threadId = (Date.now() / 1000).toString();
-            }
+            const threadId = this.replyingToThread || MessageUtils.generateThreadId();
 
             const message: WebChatMessage = {
                 action: 'message',
@@ -375,7 +446,7 @@ class OheroWebChat {
 
             // Add user message to local chat immediately
             this.addChatMessage({
-                id: `msg-${Date.now()}`,
+                id: MessageUtils.generateMessageId(),
                 text: messageText,
                 author: 'You',
                 timestamp: new Date().toISOString(),
@@ -390,8 +461,8 @@ class OheroWebChat {
             this.cancelReply();
 
         } catch (error) {
-            console.error('Failed to send message:', error);
-            this.addSystemMessage('Failed to send message: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            ErrorHandler.handle(error, 'Message sending', 'Failed to send message',
+                (msg) => this.addSystemMessage(msg));
         }
     }
 
@@ -410,43 +481,21 @@ class OheroWebChat {
                 console.log('Handling team channels response...');
                 this.handleTeamChannelsResponse(message);
             } else {
-                // Handle structured event messages (health_event, sechub_event) and regular chat messages
-                let text: string;
-                let isStructuredEvent = false;
+                // Handle structured event messages and regular chat messages
+                const isStructuredEvent = MessageUtils.isStructuredEvent(message);
+                const text = isStructuredEvent
+                    ? (message.title || message.text || 'Event notification')
+                    : MessageUtils.extractText(message);
 
-                if (message.type === 'health_event' || message.type === 'sechub_event' ||
-                    message.type === 'health_event_update' || message.type === 'event_status') {
-                    // This is a structured event message - we'll render it specially
-                    text = message.title || message.text || 'Event notification';
-                    isStructuredEvent = true;
-                } else {
-                    // Handle regular chat messages from backend
-                    text = message.text || message.message || message.content || JSON.stringify(message);
-                }
-
-                const threadId = message.threadId || (Date.now() / 1000).toString();
+                const threadId = message.threadId || MessageUtils.generateThreadId();
 
                 // Enrich message with default channel ID if no channel is provided
                 if (!message.channel) {
                     message.channel = this.DEFAULT_CHANNEL_ID;
                 }
 
-                // Handle channel mapping - could be team ID (fin01) or Slack channel ID (C094YKMH56K)
-                let channel = message.channel;
-
-                console.log('Original channel from message:', message.channel);
-                console.log('Available channels:', Array.from(this.channels.keys()));
-                console.log('Slack channel mappings:', Array.from(this.slackChannelMapping.entries()));
-
-                // If it's a Slack channel ID, map it to team ID
-                if (channel !== this.DEFAULT_CHANNEL_ID && this.slackChannelMapping.has(channel)) {
-                    const teamId = this.slackChannelMapping.get(channel);
-                    console.log('Mapped Slack channel ID to team ID:', channel, '->', teamId);
-                    channel = teamId!;
-                } else if (channel !== this.DEFAULT_CHANNEL_ID && !this.channels.has(channel)) {
-                    console.log('Unknown channel, defaulting:', channel);
-                    channel = this.DEFAULT_CHANNEL_ID;
-                }
+                // Handle channel mapping
+                const channel = this.resolveChannelId(message.channel);
 
                 // Determine if this is a reply based on existing thread
                 const existingThread = this.threads.get(threadId);
@@ -463,7 +512,7 @@ class OheroWebChat {
                 });
 
                 this.addChatMessage({
-                    id: message.messageId || `msg-${Date.now()}`,
+                    id: message.messageId || MessageUtils.generateMessageId(),
                     text: text,
                     author: 'OHERO Assistant',
                     timestamp: message.timestamp || new Date().toISOString(),
@@ -476,9 +525,8 @@ class OheroWebChat {
             }
 
         } catch (error) {
-            console.error('Failed to parse incoming message:', error);
-            // Display raw message if parsing fails
-            this.addSystemMessage('Failed to parse message: ' + data);
+            ErrorHandler.handle(error, 'Message parsing', 'Failed to parse message',
+                () => this.addSystemMessage('Failed to parse message: ' + data));
         }
     }
 
@@ -488,29 +536,39 @@ class OheroWebChat {
             console.log('Received team channels response:', message);
             console.log('Parsed team channels:', teamChannels);
 
-            // Clear existing channels and mappings except default
+            // Preserve existing messages and threads before clearing channels
+            const existingMessages = new Map(this.messages);
+            const existingUnreadCounts = new Map(this.unreadCounts);
+
+            // Clear existing channels and mappings
             this.channels.clear();
             this.slackChannelMapping.clear();
-            this.initializeDefaultChannel();
+
+            // Re-initialize default channel (but preserve its messages)
+            const defaultChannel = ChannelUtils.createDefaultChannel(this.DEFAULT_CHANNEL_ID);
+            this.channels.set(this.DEFAULT_CHANNEL_ID, defaultChannel);
+
+            // Restore existing messages and unread counts for default channel
+            this.messages.set(this.DEFAULT_CHANNEL_ID,
+                existingMessages.get(this.DEFAULT_CHANNEL_ID) || []);
+            this.unreadCounts.set(this.DEFAULT_CHANNEL_ID,
+                existingUnreadCounts.get(this.DEFAULT_CHANNEL_ID) || 0);
 
             // Add received channels and create Slack channel ID mapping
-            teamChannels.forEach(channel => {
+            teamChannels.forEach(channelData => {
+                const channel = ChannelUtils.createChannelFromData(channelData);
                 console.log('Adding channel:', channel);
                 this.channels.set(channel.PK, channel);
 
-                // Create separate mapping for Slack channel ID lookup (don't add to channels map)
+                // Create separate mapping for Slack channel ID lookup
                 if (channel.SlackChannelId) {
                     console.log('Mapping Slack channel ID:', channel.SlackChannelId, 'to team:', channel.PK);
                     this.slackChannelMapping.set(channel.SlackChannelId, channel.PK);
                 }
 
-                if (!this.messages.has(channel.PK)) {
-                    this.messages.set(channel.PK, []);
-                }
-
-                if (!this.unreadCounts.has(channel.PK)) {
-                    this.unreadCounts.set(channel.PK, 0);
-                }
+                // Preserve existing messages and unread counts for this channel
+                this.messages.set(channel.PK, existingMessages.get(channel.PK) || []);
+                this.unreadCounts.set(channel.PK, existingUnreadCounts.get(channel.PK) || 0);
             });
 
             console.log('Final channels map:', this.channels);
@@ -521,8 +579,8 @@ class OheroWebChat {
             this.addSystemMessage(`Loaded ${teamChannels.length} team channels from server`);
 
         } catch (error) {
-            console.error('Error handling team channels response:', error);
-            this.addSystemMessage('Error processing team channels response: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            ErrorHandler.handle(error, 'Team channels processing', 'Error processing team channels response',
+                (msg) => this.addSystemMessage(msg));
         }
     }
 
@@ -610,21 +668,17 @@ class OheroWebChat {
         console.log('Adding chat message:', message);
         console.log('Message channel:', message.channel, 'Current channel:', this.currentChannel);
 
-        // Ensure the channel exists in messages map
-        if (!this.messages.has(message.channel)) {
-            console.log('Creating new message list for channel:', message.channel);
-            this.messages.set(message.channel, []);
-        }
+        // Ensure the channel exists
+        this.ensureChannelExists(message.channel);
 
         // Add to messages for the channel
-        const channelMessages = this.messages.get(message.channel) || [];
+        const channelMessages = this.messages.get(message.channel)!;
         channelMessages.push(message);
-        this.messages.set(message.channel, channelMessages);
         console.log('Channel', message.channel, 'now has', channelMessages.length, 'messages');
 
         // Update unread count if message is not for current channel and not from user
         if (message.channel !== this.currentChannel && message.author !== 'You') {
-            const currentUnread = this.unreadCounts.get(message.channel) || 0;
+            const currentUnread = this.unreadCounts.get(message.channel)!;
             this.unreadCounts.set(message.channel, currentUnread + 1);
             console.log('Updated unread count for channel', message.channel, 'to', currentUnread + 1);
         }

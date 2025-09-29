@@ -1,3 +1,52 @@
+:root {
+    /* Color Scheme */
+    --color-primary: #007bff;
+    --color-primary-hover: #0056b3;
+    --color-success: #10b981;
+    --color-success-hover: #059669;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-danger-hover: #dc2626;
+    --color-secondary: #6b7280;
+    --color-secondary-hover: #4b5563;
+
+    /* Text Colors */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #6b7280;
+    --color-text-muted: #9ca3af;
+    --color-text-white: white;
+
+    /* Background Colors */
+    --color-bg-primary: white;
+    --color-bg-secondary: #f8f9fa;
+    --color-bg-tertiary: #f3f4f6;
+    --color-bg-sidebar: #3f0f40;
+    --color-bg-hover: #f8f9fa;
+
+    /* Border Colors */
+    --color-border-primary: #e5e7eb;
+    --color-border-secondary: #d1d5db;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
+    --spacing-2xl: 24px;
+
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-full: 24px;
+
+    /* Shadows */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -6,7 +55,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background-color: #f8f9fa;
+    background-color: var(--color-bg-secondary);
     height: 100vh;
     overflow: hidden;
 }
@@ -14,28 +63,28 @@ body {
 .app-container {
     display: flex;
     height: 100vh;
-    background: white;
+    background: var(--color-bg-primary);
 }
 
 /* Sidebar Styles */
 .sidebar {
     width: 260px;
-    background: #3f0f40;
-    color: white;
+    background: var(--color-bg-sidebar);
+    color: var(--color-text-white);
     display: flex;
     flex-direction: column;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--color-border-primary);
 }
 
 .sidebar-header {
-    padding: 20px;
+    padding: var(--spacing-xl);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-header h2 {
     font-size: 1.5rem;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-sm);
 }
 
 .channels-section {
@@ -64,11 +113,11 @@ body {
 #refreshChannelsBtn {
     background: none;
     border: none;
-    color: white;
+    color: var(--color-text-white);
     font-size: 1rem;
     cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
     opacity: 0.7;
     transition: opacity 0.2s;
 }
@@ -79,15 +128,15 @@ body {
 }
 
 .channels-list {
-    padding: 0 12px;
+    padding: 0 var(--spacing-md);
 }
 
 .channel-item {
     display: flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: var(--spacing-xs) var(--spacing-md);
     margin: 2px 0;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     transition: background-color 0.2s;
     font-size: 0.9rem;
@@ -103,7 +152,7 @@ body {
 }
 
 .channel-hash {
-    margin-right: 8px;
+    margin-right: var(--spacing-sm);
     opacity: 0.7;
     font-weight: bold;
 }
@@ -117,22 +166,22 @@ body {
 
 .channel-item.has-unread .channel-name {
     font-weight: 700;
-    color: white;
+    color: var(--color-text-white);
 }
 
 .unread-badge {
-    background: #dc3545;
-    color: white;
+    background: var(--color-danger);
+    color: var(--color-text-white);
     font-size: 0.75rem;
     font-weight: 600;
-    padding: 2px 6px;
+    padding: 2px var(--spacing-xs);
     border-radius: 10px;
     min-width: 18px;
     height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: 8px;
+    margin-left: var(--spacing-sm);
     flex-shrink: 0;
 }
 
@@ -141,33 +190,33 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: white;
+    background: var(--color-bg-primary);
     min-width: 0;
     overflow: hidden;
 }
 
 .chat-header {
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 16px 24px;
+    background: var(--color-bg-primary);
+    border-bottom: 1px solid var(--color-border-primary);
+    padding: var(--spacing-lg) var(--spacing-2xl);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-xs);
 }
 
 .chat-header h1 {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #1a1a1a;
+    color: var(--color-text-primary);
 }
 
 .header-info {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
 }
 
 .connection-status {
-    padding: 6px 12px;
+    padding: var(--spacing-xs) var(--spacing-md);
     border-radius: 20px;
     font-size: 0.875rem;
     font-weight: 500;
@@ -175,53 +224,53 @@ body {
 }
 
 .connection-status.connected {
-    background: #10b981;
+    background: var(--color-success);
 }
 
 .connection-status.connecting {
-    background: #f59e0b;
+    background: var(--color-warning);
 }
 
 .connection-status.disconnected {
-    background: #ef4444;
+    background: var(--color-danger);
 }
 
 .chat-messages {
     flex: 1;
-    padding: 16px 24px;
+    padding: var(--spacing-lg) var(--spacing-2xl);
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-sm);
     max-width: 100%;
 }
 
 .message-group {
     display: flex;
     flex-direction: column;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-lg);
 }
 
 .message-thread-root {
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-sm);
     position: relative;
     z-index: 1;
 }
 
 .message-thread-root .message-text {
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-sm);
 }
 
 /* Add subtle visual distinction for root messages in expanded threads */
 .message-thread-root.thread-expanded {
-    border-left: 3px solid #e5e7eb;
-    padding-left: 12px;
-    margin-left: -12px;
+    border-left: 3px solid var(--color-border-primary);
+    padding-left: var(--spacing-md);
+    margin-left: calc(-1 * var(--spacing-md));
     background: rgba(248, 249, 250, 0.5);
-    border-radius: 8px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    border-radius: var(--radius-lg);
+    padding-top: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
     overflow: visible;
 }
 
@@ -241,7 +290,7 @@ body {
 .message {
     display: flex;
     align-items: flex-start;
-    padding: 8px 0;
+    padding: var(--spacing-sm) 0;
     word-wrap: break-word;
     line-height: 1.4;
     position: relative;
@@ -250,10 +299,10 @@ body {
 }
 
 .message:hover {
-    background: #f8f9fa;
-    margin: 0 -12px;
-    padding: 8px 12px;
-    border-radius: 8px;
+    background: var(--color-bg-hover);
+    margin: 0 calc(-1 * var(--spacing-md));
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
 }
 
 .message:hover .message-actions {
@@ -452,36 +501,36 @@ body {
 }
 
 .chat-input-container {
-    padding: 16px 24px;
-    border-top: 1px solid #e5e7eb;
-    background: white;
+    padding: var(--spacing-lg) var(--spacing-2xl);
+    border-top: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
 }
 
 .thread-indicator {
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 12px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
 }
 
 #cancelReplyBtn {
     background: none;
     border: none;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 2px var(--spacing-xs);
+    border-radius: var(--radius-sm);
     font-size: 1rem;
 }
 
 #cancelReplyBtn:hover {
-    background: #e5e7eb;
+    background: var(--color-border-primary);
 }
 
 .config-section {
@@ -517,34 +566,105 @@ body {
 
 .input-group {
     display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
 }
 
 .input-group input {
     flex: 1;
-    padding: 12px 16px;
-    border: 2px solid #e5e7eb;
-    border-radius: 24px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: 2px solid var(--color-border-primary);
+    border-radius: var(--radius-full);
     font-size: 1rem;
     outline: none;
     transition: border-color 0.2s;
 }
 
 .input-group input:focus {
-    border-color: #007bff;
+    border-color: var(--color-primary);
 }
 
 .input-group input:disabled {
-    background: #f3f4f6;
-    color: #9ca3af;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-muted);
     cursor: not-allowed;
 }
 
-button {
-    padding: 12px 24px;
+/* Base Button Styles */
+.btn {
+    padding: var(--spacing-md) var(--spacing-2xl);
     border: none;
-    border-radius: 24px;
+    border-radius: var(--radius-full);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.btn:disabled {
+    background: var(--color-text-muted);
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: var(--color-text-white);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+}
+
+.btn-success {
+    background: var(--color-success);
+    color: var(--color-text-white);
+}
+
+.btn-success:hover:not(:disabled) {
+    background: var(--color-success-hover);
+}
+
+.btn-danger {
+    background: var(--color-danger);
+    color: var(--color-text-white);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--color-danger-hover);
+}
+
+.btn-secondary {
+    background: var(--color-secondary);
+    color: var(--color-text-white);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--color-secondary-hover);
+}
+
+.btn-ghost {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.btn-ghost:hover {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+}
+
+/* Legacy button support */
+button {
+    padding: var(--spacing-md) var(--spacing-2xl);
+    border: none;
+    border-radius: var(--radius-full);
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
@@ -552,16 +672,16 @@ button {
 }
 
 #sendButton {
-    background: #007bff;
-    color: white;
+    background: var(--color-primary);
+    color: var(--color-text-white);
 }
 
 #sendButton:hover:not(:disabled) {
-    background: #0056b3;
+    background: var(--color-primary-hover);
 }
 
 #sendButton:disabled {
-    background: #9ca3af;
+    background: var(--color-text-muted);
     cursor: not-allowed;
 }
 
@@ -671,9 +791,9 @@ button {
 }
 
 .event-action-btn {
-    padding: 10px 20px;
+    padding: 10px var(--spacing-xl);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
@@ -682,30 +802,30 @@ button {
 }
 
 .event-action-btn.primary {
-    background: #10b981;
-    color: white;
+    background: var(--color-success);
+    color: var(--color-text-white);
 }
 
 .event-action-btn.primary:hover {
-    background: #059669;
+    background: var(--color-success-hover);
 }
 
 .event-action-btn.danger {
-    background: #ef4444;
-    color: white;
+    background: var(--color-danger);
+    color: var(--color-text-white);
 }
 
 .event-action-btn.danger:hover {
-    background: #dc2626;
+    background: var(--color-danger-hover);
 }
 
 .event-action-btn.secondary {
-    background: #6b7280;
-    color: white;
+    background: var(--color-secondary);
+    color: var(--color-text-white);
 }
 
 .event-action-btn.secondary:hover {
-    background: #4b5563;
+    background: var(--color-secondary-hover);
 }
 
 /* Scrollbar styling */

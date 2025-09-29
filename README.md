@@ -125,8 +125,6 @@ EVENT_HUB_ARN=arn:aws:events:<replace with the worker service region>:<replace w
 SLACK_CHANNEL_ID=<your admin (operations team) Slack channel ID here>
 SLACK_APP_VERIFICATION_TOKEN=<replace with your Slack app verification token>
 SLACK_ACCESS_TOKEN=<replace with your Slack Bot User OAuth Token value>
-WEB_CHAT_API_KEY=your-secure-api-key-change-this-value
-NOTIFICATION_CHANNEL=slack
 ```
 ### Deploy by CDK
 Deploy processing microservice to your worker account, the worker account can be the same as your admin account.
@@ -135,33 +133,6 @@ In project root directory, run the following commend:
 cdk deploy --all --require-approval never
 ```
 Capture the “HandleSlackCommApiUrl” stack output URL, go to your [Slack app](https://api.slack.com/apps) created in previous steps, go to Event Subscriptions, Request URL Change, then update the URL value with the stack output URL and save.
-
-## Web Chat Interface (Alternative to Slack)
-
-OHERO now supports a web-based chat interface as an alternative to Slack integration. This provides a simple web UI for demonstration purposes.
-
-### Deploying with Web Chat
-
-1. Update your `.env` file to enable web chat:
-```zsh
-NOTIFICATION_CHANNEL=webchat
-WEB_CHAT_API_KEY=your-secure-api-key-change-this-value
-```
-
-2. Deploy with CDK (frontend is built automatically):
-```zsh
-cdk deploy --all --require-approval never
-```
-
-3. Access the web interface using the `WebsiteUrl` output from the CloudFront distribution.
-
-### Web Chat Features
-
-- Real-time WebSocket communication with the OHERO AI assistant
-- Simple, responsive web interface
-- Automatic reconnection with exponential backoff
-- Message history and connection status indicators
-- No complex framework dependencies (vanilla TypeScript + CSS)
 
 ## Onboard a tenant team
 Log in AWS console (worker account), find the 'TeamManagementTable' in DynamoDB console, create a record with PK = app01, and a string attribute 'SlackChannelId' = the slack channel id for the sample tenant account

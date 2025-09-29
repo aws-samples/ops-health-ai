@@ -15,7 +15,5 @@ prompt-templates/bkup
 *.drawio
 deployment
 .guidelines
-docs
-
 # Frontend build artifacts
 frontend/dist/
