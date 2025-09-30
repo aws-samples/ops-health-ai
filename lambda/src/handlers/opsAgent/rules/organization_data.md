@@ -6,9 +6,9 @@ Key attributes of accounts in JSON format, entails account nature such as produc
 {
   "accounts": [
     {
-      "id": "098950019017",
+      "id": "111111111111",
       "name": "core-repo",
-      "email": "seanxw+repo@amazon.com",
+      "email": "ohero+repo@example.com",
       "status": "ACTIVE",
       "tags": {
         "environment": "production",
@@ -19,9 +19,9 @@ Key attributes of accounts in JSON format, entails account nature such as produc
       ]
     },
     {
-      "id": "109142238729",
+      "id": "222222222222",
       "name": "sec-ops",
-      "email": "seanxw+secops@amazon.com",
+      "email": "ohero+secops@example.com",
       "status": "ACTIVE",
       "tags": {
         "environment": "production",
@@ -32,9 +32,9 @@ Key attributes of accounts in JSON format, entails account nature such as produc
       ]
     },
     {
-      "id": "437416325534",
+      "id": "333333333333",
       "name": "core-infrastructure",
-      "email": "seanx+infra@amazon.com",
+      "email": "ohero+infra@example.com",
       "status": "ACTIVE",
       "tags": {
         "environment": "production",
@@ -45,9 +45,9 @@ Key attributes of accounts in JSON format, entails account nature such as produc
       ]
     },
     {
-      "id": "543576786396",
+      "id": "444444444444",
       "name": "sandpit",
-      "email": "seanxw+sandpit@amazon.com",
+      "email": "ohero+sandpit@example.com",
       "status": "ACTIVE",
       "tags": {
         "environment": "production",
@@ -58,9 +58,9 @@ Key attributes of accounts in JSON format, entails account nature such as produc
       ]
     },
     {
-      "id": "736078743999",
+      "id": "555555555555",
       "name": "Log Archive",
-      "email": "seanxw+logging@amazon.com",
+      "email": "ohero+logging@example.com",
       "status": "ACTIVE",
       "tags": {
         "environment": "production",
@@ -71,9 +71,9 @@ Key attributes of accounts in JSON format, entails account nature such as produc
       ]
     },
     {
-      "id": "836175490138",
+      "id": "666666666666",
       "name": "primary",
-      "email": "seanxw@amazon.com",
+      "email": "ohero@example.com",
       "status": "ACTIVE",
       "tags": {
         "environment": "non-production",
@@ -82,9 +82,9 @@ Key attributes of accounts in JSON format, entails account nature such as produc
       "ou_names": []
     },
     {
-      "id": "899225277561",
+      "id": "777777777777",
       "name": "Audit",
-      "email": "seanxw+audit@amazon.com",
+      "email": "ohero+audit@example.com",
       "status": "ACTIVE",
       "tags": {
         "environment": "production",

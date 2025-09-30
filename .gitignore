@@ -14,6 +14,6 @@ lambda/src/events
 prompt-templates/bkup
 *.drawio
 deployment
-.guidelines
+.private
 # Frontend build artifacts
 frontend/dist/

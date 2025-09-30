@@ -259,6 +259,7 @@ export class StatefulStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING
       },
     });
+    new cdk.CfnOutput(this, "TeamManagementTableName", { value: this.teamManagementTable.tableName })
     /*************************************************************************************** */
 
     /******************* DynamoDB Table to mock up issue ticket tool *****************/
