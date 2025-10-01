@@ -77,7 +77,7 @@ Key attributes of accounts in JSON format, entails account nature such as produc
       "status": "ACTIVE",
       "tags": {
         "environment": "non-production",
-        "team": "coe"
+        "team": "inf01"
       },
       "ou_names": []
     },
