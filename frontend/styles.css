@@ -290,19 +290,19 @@ body {
 .message {
     display: flex;
     align-items: flex-start;
-    padding: var(--spacing-sm) 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin: 0 calc(-1 * var(--spacing-md));
     word-wrap: break-word;
     line-height: 1.4;
     position: relative;
     max-width: 100%;
     overflow: visible;
+    border-radius: var(--radius-lg);
+    transition: background-color 0.2s ease;
 }
 
 .message:hover {
     background: var(--color-bg-hover);
-    margin: 0 calc(-1 * var(--spacing-md));
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-lg);
 }
 
 .message:hover .message-actions {
@@ -324,11 +324,11 @@ body {
 }
 
 .message-avatar.user {
-    background: #007bff;
+    background: var(--color-primary);
 }
 
 .message-avatar.assistant {
-    background: #10b981;
+    background: var(--color-success);
     background-image: url('ohero-icon-48.png');
     background-size: cover;
     background-position: center;
@@ -346,7 +346,7 @@ body {
 }
 
 .message-avatar.system {
-    background: #6b7280;
+    background: var(--color-secondary);
 }
 
 .message-content {
@@ -365,17 +365,17 @@ body {
 
 .message-author {
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--color-text-primary);
     font-size: 0.9rem;
 }
 
 .message-timestamp {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
 }
 
 .message-text {
-    color: #1a1a1a;
+    color: var(--color-text-primary);
     font-size: 0.9rem;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -391,13 +391,13 @@ body {
     position: absolute;
     top: -12px;
     right: 16px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
     padding: 4px;
     opacity: 0;
     transition: opacity 0.2s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     z-index: 10;
 }
 
@@ -406,15 +406,15 @@ body {
     border: none;
     padding: 6px 8px;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     transition: all 0.2s;
 }
 
 .message-action-btn:hover {
-    background: #f3f4f6;
-    color: #374151;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
 }
 
 .thread-replies {
@@ -442,7 +442,7 @@ body {
     margin-top: 4px;
     background: none;
     border: none;
-    color: #1264a3;
+    color: var(--color-primary);
     font-size: 0.875rem;
     cursor: pointer;
     padding: 4px 0;
@@ -464,41 +464,37 @@ body {
 }
 
 .hide-replies-btn {
-    color: #6b7280;
+    color: var(--color-text-secondary);
     font-style: italic;
 }
 
 .reply-to-thread-btn {
     background: none;
     border: none;
-    color: #1264a3;
+    color: var(--color-primary);
     font-size: 0.875rem;
     cursor: pointer;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     text-align: left;
     transition: background-color 0.2s;
 }
 
 .reply-to-thread-btn:hover {
-    background: #f3f4f6;
+    background: var(--color-bg-tertiary);
     text-decoration: underline;
 }
 
 .system-message {
     background: #e3f2fd;
     color: #1976d2;
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-lg);
     text-align: center;
     font-style: italic;
 }
 
-.message-timestamp {
-    font-size: 0.75rem;
-    opacity: 0.7;
-    margin-top: 4px;
-}
+
 
 .chat-input-container {
     padding: var(--spacing-lg) var(--spacing-2xl);
@@ -661,7 +657,7 @@ body {
 }
 
 /* Legacy button support */
-button {
+#sendButton {
     padding: var(--spacing-md) var(--spacing-2xl);
     border: none;
     border-radius: var(--radius-full);
@@ -669,9 +665,6 @@ button {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
-}
-
-#sendButton {
     background: var(--color-primary);
     color: var(--color-text-white);
 }
@@ -684,10 +677,6 @@ button {
     background: var(--color-text-muted);
     cursor: not-allowed;
 }
-
-
-
-
 
 /* Event Card Styles */
 .event-card {
@@ -873,11 +862,6 @@ button {
     }
 
     .message {
-        margin: 0 -8px;
-        padding: 8px;
-    }
-
-    .message:hover {
         margin: 0 -8px;
         padding: 8px;
     }

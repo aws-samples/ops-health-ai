@@ -213,17 +213,10 @@ class OheroWebChat {
     private resolveChannelId(messageChannel?: string): string {
         let channel = messageChannel || this.DEFAULT_CHANNEL_ID;
 
-        console.log('Original channel from message:', messageChannel);
-        console.log('Available channels:', Array.from(this.channels.keys()));
-        console.log('Slack channel mappings:', Array.from(this.slackChannelMapping.entries()));
-
         // If it's a Slack channel ID, map it to team ID
         if (channel !== this.DEFAULT_CHANNEL_ID && this.slackChannelMapping.has(channel)) {
-            const teamId = this.slackChannelMapping.get(channel);
-            console.log('Mapped Slack channel ID to team ID:', channel, '->', teamId);
-            channel = teamId!;
+            channel = this.slackChannelMapping.get(channel)!;
         } else if (channel !== this.DEFAULT_CHANNEL_ID && !this.channels.has(channel)) {
-            console.log('Unknown channel, defaulting:', channel);
             channel = this.DEFAULT_CHANNEL_ID;
         }
 
@@ -265,7 +258,6 @@ class OheroWebChat {
 
     private async loadConfiguration(): Promise<void> {
         try {
-            console.log('Loading configuration from config.json...');
             const response = await fetch('./config.json');
 
             if (!response.ok) {
@@ -279,7 +271,7 @@ class OheroWebChat {
                 teamManagementTableName: configData.teamManagementTableName || ''
             };
 
-            console.log('Configuration loaded successfully');
+
             this.initializeWebSocketUrl();
             this.updateUI();
 
@@ -308,17 +300,14 @@ class OheroWebChat {
     }
 
     private initializeWebSocketUrl(): void {
-        // Log WebSocket URL from config for debugging
-        if (this.config && this.config.websocketUrl) {
-            console.log('WebSocket URL loaded from config:', this.config.websocketUrl);
-        } else {
+        // Validate WebSocket URL from config
+        if (!this.config?.websocketUrl) {
             console.warn('No WebSocket URL found in configuration');
         }
     }
 
     public connect(): void {
         if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-            console.log('Already connected');
             return;
         }
 
@@ -340,12 +329,11 @@ class OheroWebChat {
             // Construct WebSocket URL with API key
             const wsUrl = `${websocketUrl}?apiKey=${encodeURIComponent(this.config.apiKey)}&userId=web-user`;
 
-            console.log('Connecting to:', wsUrl.replace(this.config.apiKey, '***'));
+
 
             this.websocket = new WebSocket(wsUrl);
 
             this.websocket.onopen = (event: Event) => {
-                console.log('WebSocket connected:', event);
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 this.updateConnectionStatus('connected');
@@ -359,12 +347,10 @@ class OheroWebChat {
             };
 
             this.websocket.onmessage = (event: MessageEvent) => {
-                console.log('Message received:', event.data);
                 this.handleIncomingMessage(event.data);
             };
 
             this.websocket.onclose = (event: CloseEvent) => {
-                console.log('WebSocket closed:', event);
                 this.isConnected = false;
                 this.updateConnectionStatus('disconnected');
                 this.stopHeartbeat();
@@ -441,7 +427,7 @@ class OheroWebChat {
                 channel: this.currentChannel
             };
 
-            console.log('Sending message:', message);
+
             this.websocket.send(JSON.stringify(message));
 
             // Add user message to local chat immediately
@@ -469,8 +455,6 @@ class OheroWebChat {
     private handleIncomingMessage(data: string): void {
         try {
             const message: IncomingMessage = JSON.parse(data);
-            console.log('Raw incoming message:', data);
-            console.log('Parsed incoming message:', message);
 
             // Handle different message types
             if (message.type === 'system') {
@@ -478,7 +462,6 @@ class OheroWebChat {
             } else if (message.type === 'error') {
                 this.addSystemMessage('Error: ' + (message.text || message.message || 'Unknown error'));
             } else if (message.type === 'teamChannels') {
-                console.log('Handling team channels response...');
                 this.handleTeamChannelsResponse(message);
             } else {
                 // Handle structured event messages and regular chat messages
@@ -501,15 +484,7 @@ class OheroWebChat {
                 const existingThread = this.threads.get(threadId);
                 const isReply = !!existingThread;
 
-                console.log('Processing backend message:', {
-                    threadId,
-                    existingThread: !!existingThread,
-                    isReply,
-                    channel,
-                    currentChannel: this.currentChannel,
-                    messageType: message.type,
-                    isStructuredEvent
-                });
+
 
                 this.addChatMessage({
                     id: message.messageId || MessageUtils.generateMessageId(),
@@ -533,8 +508,6 @@ class OheroWebChat {
     private handleTeamChannelsResponse(message: any): void {
         try {
             const teamChannels: TeamChannel[] = message.data || [];
-            console.log('Received team channels response:', message);
-            console.log('Parsed team channels:', teamChannels);
 
             // Preserve existing messages and threads before clearing channels
             const existingMessages = new Map(this.messages);
@@ -557,12 +530,10 @@ class OheroWebChat {
             // Add received channels and create Slack channel ID mapping
             teamChannels.forEach(channelData => {
                 const channel = ChannelUtils.createChannelFromData(channelData);
-                console.log('Adding channel:', channel);
                 this.channels.set(channel.PK, channel);
 
                 // Create separate mapping for Slack channel ID lookup
                 if (channel.SlackChannelId) {
-                    console.log('Mapping Slack channel ID:', channel.SlackChannelId, 'to team:', channel.PK);
                     this.slackChannelMapping.set(channel.SlackChannelId, channel.PK);
                 }
 
@@ -570,9 +541,6 @@ class OheroWebChat {
                 this.messages.set(channel.PK, existingMessages.get(channel.PK) || []);
                 this.unreadCounts.set(channel.PK, existingUnreadCounts.get(channel.PK) || 0);
             });
-
-            console.log('Final channels map:', this.channels);
-            console.log('Slack channel mapping:', this.slackChannelMapping);
 
             // Update UI
             this.updateChannelsList();
@@ -665,36 +633,28 @@ class OheroWebChat {
     }
 
     private addChatMessage(message: ChatMessage): void {
-        console.log('Adding chat message:', message);
-        console.log('Message channel:', message.channel, 'Current channel:', this.currentChannel);
-
         // Ensure the channel exists
         this.ensureChannelExists(message.channel);
 
         // Add to messages for the channel
         const channelMessages = this.messages.get(message.channel)!;
         channelMessages.push(message);
-        console.log('Channel', message.channel, 'now has', channelMessages.length, 'messages');
 
         // Update unread count if message is not for current channel and not from user
         if (message.channel !== this.currentChannel && message.author !== 'You') {
             const currentUnread = this.unreadCounts.get(message.channel)!;
             this.unreadCounts.set(message.channel, currentUnread + 1);
-            console.log('Updated unread count for channel', message.channel, 'to', currentUnread + 1);
         }
 
         // Handle threading
         if (message.isReply && message.parentThreadId) {
             // This is a reply to an existing thread
-            let thread = this.threads.get(message.parentThreadId);
-            console.log('Adding reply to thread:', message.parentThreadId, 'Thread found:', !!thread);
+            const thread = this.threads.get(message.parentThreadId);
             if (thread) {
                 thread.replies.push(message);
-                console.log('Thread now has', thread.replies.length, 'replies');
             }
         } else {
             // This is a root message, create a new thread
-            console.log('Creating new thread:', message.threadId);
             this.threads.set(message.threadId, {
                 rootMessage: message,
                 replies: [],
@@ -704,26 +664,14 @@ class OheroWebChat {
 
         // Re-render messages if this is for the current channel
         if (message.channel === this.currentChannel) {
-            console.log('Re-rendering messages for current channel:', this.currentChannel);
             this.renderMessages();
         } else {
-            console.log('Message for different channel:', message.channel, 'current:', this.currentChannel);
-            console.log('Available channels:', Array.from(this.channels.keys()));
             // Update channels list to show unread indicators
             this.updateChannelsList();
         }
-
-        // Force a UI refresh to ensure thread counts are updated
-        this.refreshCurrentChannelView();
     }
 
-    private refreshCurrentChannelView(): void {
-        // Only refresh if the message is for the current channel
-        if (this.currentChannel) {
-            console.log('Refreshing current channel view:', this.currentChannel);
-            this.renderMessages();
-        }
-    }
+
 
     private renderMessages(): void {
         const messagesContainer = this.elements.chatMessages;
@@ -1008,18 +956,7 @@ class OheroWebChat {
         this.elements.messageInput.placeholder = 'Type your message here...';
     }
 
-    private addMessage(text: string, sender: 'user' | 'assistant'): void {
-        // Legacy method - convert to new message format
-        this.addChatMessage({
-            id: `msg-${Date.now()}`,
-            text: text,
-            author: sender === 'user' ? 'You' : 'OHERO Assistant',
-            timestamp: new Date().toISOString(),
-            threadId: (Date.now() / 1000).toString(),
-            channel: this.currentChannel,
-            isReply: false
-        });
-    }
+
 
     private addSystemMessage(text: string): void {
         const messageDiv = document.createElement('div');

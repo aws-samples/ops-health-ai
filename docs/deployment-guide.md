@@ -79,11 +79,13 @@ cdk bootstrap <replace with your AWS account id of the administration account>/<
 ### Copy repo to your local directory
 ```zsh
 git clone https://github.com/aws-samples/ops-health-ai.git
+```
+### Build serverless packages
+NOTE: Depending on your build environment, you might want o change the arch type to 'x86' or 'arm' in the global parameter section of `lambda/src/template.yaml` file before sam build command
+```zsh
 cd ops-health-ai
 npm install
 cd lambda/src
-# Depending on your build environment, you might want o change the arch type to 'x86'
-# or 'arm' in lambda/src/template.yaml file before build 
 sam build --use-container
 cd ../..
 ```
