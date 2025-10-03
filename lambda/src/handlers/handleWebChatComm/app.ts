@@ -180,7 +180,7 @@ const dispatchWebChatMessage = async (webChatEvent: WebChatEvent): Promise<ApiGw
         timestamp: messageData.timestamp,
         threadId: messageData.threadId,
         messageType: messageData.messageType || 'message',
-        channel: connectionId // Use connectionId as channel equivalent
+        channel: (messageData as any).channel || connectionId // Use connectionId as channel fallback
       },
       source: 'webchat'
     };
