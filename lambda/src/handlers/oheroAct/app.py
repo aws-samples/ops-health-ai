@@ -1,6 +1,6 @@
 import time, boto3, os
-import llm_utils
-from agent import Agent
+from opsAgent import llm_utils
+from opsAgent.agent import Agent
 import json, uuid
 
 s3 = boto3.client('s3')

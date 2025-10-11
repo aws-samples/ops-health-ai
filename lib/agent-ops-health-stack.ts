@@ -191,9 +191,9 @@ export class OpsHealthAgentStack extends cdk.Stack {
     });
 
     // ===== Full agent functionalities =====
-    const invokeAgentFunction = new lambda.Function(this, 'OpsAgentFunction', {
+    const invokeOheroActFunction = new lambda.Function(this, 'OheroActFunction', {
       runtime: lambda.Runtime.PYTHON_3_11,
-      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/OpsAgentFunction'),
+      code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/OheroActFunction'),
       handler: 'app.lambda_handler',
       timeout: cdk.Duration.seconds(900), // long duration to accommodate throttling retries, make sure your AWS account and region has the appropriate quota for used LLMs
       memorySize: 256,
@@ -216,7 +216,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     // ============================
 
     const invokeAgentLogGroup = new logs.LogGroup(this, 'InvokeAgentLogGroup', {
-      logGroupName: `/aws/lambda/${invokeAgentFunction.functionName}`,
+      logGroupName: `/aws/lambda/${invokeOheroActFunction.functionName}`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -243,7 +243,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       effect: cdk.aws_iam.Effect.ALLOW
     });
 
-    invokeAgentFunction.role?.attachInlinePolicy(
+    invokeOheroActFunction.role?.attachInlinePolicy(
       new iam.Policy(this, 'invoke-agent-policy', {
         statements: [invokeAgentPolicy],
       }),
@@ -282,7 +282,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const aiIntegrationSfn = new sfn.StateMachine(this, 'OheroAiIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-integration.asl')).toString().trim()),
       definitionSubstitutions: {
-        "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
+        "InvokeBedRockAgentFunctionNamePlaceholder": invokeOheroActFunction.functionName,
         "EventManagementTablePlaceHolder": props.eventManagementTableName,
         "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
         "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix
@@ -346,7 +346,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-chat.asl')).toString().trim()),
       definitionSubstitutions: {
         "OpsHealthKnowledgeBaseIdPlaceHolder": opsHealthKnowledgeBase.knowledgeBaseId,
-        "InvokeBedRockAgentFunctionNamePlaceholder": invokeAgentFunction.functionName,
+        "InvokeBedRockAgentFunctionNamePlaceholder": invokeOheroActFunction.functionName,
         "SlackChannelIdPlaceholder": props.slackChannelId,
         "ChatUserSessionsTableNamePlaceholder": chatUserSessionsTable.tableName,
         "LlmModelArnPlaceholder": `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,

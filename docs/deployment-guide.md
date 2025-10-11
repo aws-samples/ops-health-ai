@@ -189,8 +189,7 @@ aws dynamodb batch-write-item \
 
 ## Testing the solution
 ### Method 1 - Using AWS CLI
-Synchronize the 'AskAwsKnowledgeBase' knowledge base data source to use the latest documentation - using the [AWS Management Console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/knowledge-bases) after the solution is deployed (make sure the right region is selected). This step is to make sure the knowledge base is populated with the documentation that the OpsAgent needs to answer relevant questions.
-Then run below AWS CLIcommand:
+
 ```shell
 aws events put-events --entries file://test-events/mockup-ops-event.json
 aws events put-events --entries file://test-events/mockup-ops-event2.json

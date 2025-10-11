@@ -10,10 +10,10 @@ Globals:
         - arm64
 
 Resources:
-  OpsAgentFunction:
+  OheroActFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: handlers/opsAgent/
+      CodeUri: handlers/oheroAct/
       Handler: app.lambda_handler
       Runtime: python3.12
       Timeout: 120

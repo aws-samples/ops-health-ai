@@ -307,7 +307,7 @@ sequenceDiagram
 
 - **Lambda Functions**:
 
-  - `OpsAgentFunction` - Main AI agent processing (Python 3.11, ARM64, 900s timeout, 1 concurrent execution)
+  - `OheroActFunction` - Main AI agent processing (Python 3.11, ARM64, 900s timeout, 1 concurrent execution)
   - `IngestOpsKbFunction` - Knowledge base synchronization (Node.js 20.x, ARM64)
 
 - **Step Functions**:
@@ -332,7 +332,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[Event from Orchestration] --> B[OheroAiIntegration]
-    B --> C[Invoke OpsAgentFunction]
+    B --> C[Invoke OheroActFunction]
     C --> D{Event Type?}
     D -->|Health Event| E[Consult Health KB]
     D -->|Security Event| F[Consult SecHub KB]
@@ -356,7 +356,7 @@ flowchart TD
     B -->|No| D[Create New Session]
     C --> E[OheroChatIntegration]
     D --> E
-    E --> F[Invoke OpsAgentFunction]
+    E --> F[Invoke OheroActFunction]
     F --> G[Consult Knowledge Bases]
     G --> H[Generate Response]
     H --> I[Update Session]

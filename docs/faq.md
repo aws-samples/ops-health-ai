@@ -322,10 +322,10 @@ The AI agent makes intelligent accept/discharge decisions based on several facto
 **Common Reasons for Event Discharge:**
 
 1. **Event content not meeting acceptance criterion**
-**Check**: Go to `lambda/src/handlers/opsAgent/rules/acknowledge.md` to verify current acceptance criterion, e.g. affected accounts is production account, and/or has potential cost impact.
+**Check**: Go to `lambda/src/handlers/oheroAct/rules/acknowledge.md` to verify current acceptance criterion, e.g. affected accounts is production account, and/or has potential cost impact.
 
 2. **Incorrect organization reference**
-**Check**: Go to `lambda/src/handlers/opsAgent/rules/organization_data.md` to verify organization attributes are reflecting your own test data, e.g. account ID matching that of the test events, owner team id matching your onboarded teams in the TeamManagementTable.
+**Check**: Go to `lambda/src/handlers/oheroAct/rules/organization_data.md` to verify organization attributes are reflecting your own test data, e.g. account ID matching that of the test events, owner team id matching your onboarded teams in the TeamManagementTable.
 
 ## Security & Compliance
 
