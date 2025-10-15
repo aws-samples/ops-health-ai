@@ -1,6 +1,6 @@
 import boto3, os, re, json, uuid
 from datetime import datetime
-import llm_utils
+from . import llm_utils
 from pathlib import Path
 
 region = os.environ['AWS_REGION']
@@ -11,16 +11,28 @@ s3 = boto3.client('s3')
 
 class Agent:
 
-    def __init__(self, session=None, tools=None, reasoning_budget=4096, conversational=False):
+    def __init__(self, session=None, tool_filter=None, reasoning_budget=4096, conversational=False):
         self.name = 'OheroAgent'
-        self.tools = tools
         self.reasoning_budget = reasoning_budget
         self.session_id = session
         self.conversation_history = self.load_memory()
         self.conversational = conversational # whether the agent is able to ask user questions
+
+        # Load all available tools
+        all_tools = self._get_supported_tools()
+
+        # Apply filter if provided, otherwise use all tools
+        if tool_filter:
+            self.tools = [all_tools[tool_name] for tool_name in tool_filter if tool_name in all_tools]
+            if len(self.tools) != len(tool_filter):
+                missing = [name for name in tool_filter if name not in all_tools]
+                print(f"Warning: Some requested tools not found: {missing}")
+        else:
+            self.tools = list(all_tools.values())
+
         self.tool_descriptions = "\n".join([
             f"- {tool['toolSpec']['name']}: {tool['toolSpec']['description']}"
-            for tool in tools
+            for tool in self.tools
         ])
 
         # Set up the rules directory path
@@ -124,6 +136,38 @@ class Agent:
             )
         except Exception as e:
             print(f"Saving knowledge failed: {str(e)}")
+
+    def _get_supported_tools(self):
+        """
+        Read tool specifications from tool_specs.json and define all supported tools
+        """
+        # Get the directory of the current file
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Path to the tool_specs.json file
+        json_path = os.path.join(current_dir, 'tool_specs.json')
+
+        # Initialize the tools dictionary
+        tools = {}
+
+        try:
+            # Read and parse the JSON file
+            with open(json_path, 'r') as file:
+                tool_specs = json.load(file)
+
+            # Iterate through all supported tools
+            for tool_spec in tool_specs.get('SupportedTools', []):
+                name = tool_spec.get('name')
+                description = tool_spec.get('description')
+                parameters = tool_spec.get('parameters')
+
+                # Define the tool using the existing function from llm_utils
+                if name and description and parameters:
+                    tools[name] = llm_utils.define_tool(name, description, parameters)
+
+            return tools
+        except Exception as e:
+            print(f"Error loading tool specifications: {str(e)}")
+            return {}
 
     def plan_and_act(self, query, max_steps=6):
         print(f"Starting research on: {query}")

@@ -20,7 +20,6 @@ Resources:
       MemorySize: 128
       Environment:
         Variables:
-          AWS_KB_ID: "string"
           BEDROCK_GUARDRAIL_ID: "string"
           BEDROCK_GUARDRAIL_VER: "string"
           EVENT_BUS_NAME: "string"
@@ -176,7 +175,3 @@ Resources:
         Sourcemap: false
         EntryPoints:
         - app.ts
-
-
-
-

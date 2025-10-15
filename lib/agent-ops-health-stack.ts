@@ -93,24 +93,6 @@ export class OpsHealthAgentStack extends cdk.Stack {
       })
     });
 
-    const askAwsKnowledgeBase = new bedrock.VectorKnowledgeBase(this, 'AskAwsKnowledgeBase', {
-      name: 'AskAwsKnowledgeBase',
-      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
-      instruction: `Use this knowledge base for guidance and best practices from AWS.`,
-    });
-
-    const askAwsDataSource = new bedrock.WebCrawlerDataSource(this, 'AskAwsDataSource', {
-      knowledgeBase: askAwsKnowledgeBase,
-      dataSourceName: 'ask-aws',
-      sourceUrls: ['https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html','https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html','https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-systems-manager.html','https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-runbook-reference.html','https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html'],
-      crawlingScope: bedrock.CrawlingScope.DEFAULT,
-      crawlingRate: 100,
-      chunkingStrategy: bedrock.ChunkingStrategy.fixedSize({
-        maxTokens: 1000,
-        overlapPercentage: 10,
-      })
-    });
-
     const importedGuardrail = bedrock.Guardrail.fromGuardrailAttributes(this, 'TestGuardrail', {
       guardrailArn: props.guardrailArn
     });
@@ -192,7 +174,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
 
     // ===== Full agent functionalities =====
     const invokeOheroActFunction = new lambda.Function(this, 'OheroActFunction', {
-      runtime: lambda.Runtime.PYTHON_3_11,
+      runtime: lambda.Runtime.PYTHON_3_12,
       code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/OheroActFunction'),
       handler: 'app.lambda_handler',
       timeout: cdk.Duration.seconds(900), // long duration to accommodate throttling retries, make sure your AWS account and region has the appropriate quota for used LLMs
@@ -204,7 +186,6 @@ export class OpsHealthAgentStack extends cdk.Stack {
         KNOWLEDGE_BUCKET: props.opsHealthBucketName,
         OPS_KNOWLEDGE_BASE_ID: opsHealthKnowledgeBase.knowledgeBaseId,
         SECHUB_KNOWLEDGE_BASE_ID: opsSecHubKnowledgeBase.knowledgeBaseId,
-        AWS_KB_ID: askAwsKnowledgeBase.knowledgeBaseId,
         TICKET_TABLE: props.ticketManagementTableName,
         EVENT_SOURCE_NAME: `${props.appEventDomainPrefix}.ops-orchestration`,
         EVENT_BUS_NAME: props.oheroEventBus.eventBusName,

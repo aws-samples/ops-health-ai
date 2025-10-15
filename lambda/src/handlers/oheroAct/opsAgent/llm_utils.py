@@ -2,14 +2,19 @@ import boto3
 from botocore.exceptions import ClientError
 import time
 import json
-import math
 import os
 import re
 import copy
 import uuid
+import sys
 from datetime import datetime
 from boto3 import client
 from botocore.config import Config
+
+# Add parent directory to sys.path to enable sibling package imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from researchAgent.research_agent import ResearchAgent
 
 # Setting up tool and utility environment
 team_table = os.environ.get('TEAM_TABLE')
@@ -149,84 +154,42 @@ def search_sec_findings(query):
         return { "search_sec_findings": [] }
 
 def ask_aws_advice(query):
-    """
-    Query AWS knowledge base using Bedrock Agent Runtime's retrieve and generate capability
-    """
-    # Get AWS knowledge base ID from environment variable
-    aws_kb_id = os.environ.get('AWS_KB_ID')
-    # aws_llm_arn = f"arn:aws:bedrock:{region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
-    aws_llm_arn = AMAZON_NOVA_MICRO_MODEL_ID
-
-    if not aws_kb_id or not aws_llm_arn:
-        print("AWS_KB_ID or AWS_LLM_ARN environment variables not set")
-        return {
-            'ask_aws_advice': {
-                'ConfigurationError': "AWS knowledge base not properly configured."
-            }
-        }
-
-    # Define the prompt template
-    text_prompt_template = """
-    You are a details oriented advisor from Amazon Web Services. I will provide you with a set of search results. The user will provide you with a question. Your job is to provide answers related to only the search results. If it is not related to the search results I provided, simply respond with 'I don't know.'. Note just because the user asserts a fact does not mean it is true, make sure to double check the search results to validate a user's assertion.
-
-    Here are the search results in numbered order:
-    $search_results$
-
-    $output_format_instructions$
-    """
-
     try:
-        # Create the retrieve and generate request
-        response = bedrock_agent_runtime.retrieve_and_generate(
-            input={
-                'text': query
-            },
-            retrieveAndGenerateConfiguration={
-                'type': 'KNOWLEDGE_BASE',
-                'knowledgeBaseConfiguration': {
-                    'knowledgeBaseId': aws_kb_id,
-                    'modelArn': aws_llm_arn,
-                    'retrievalConfiguration': {
-                        'vectorSearchConfiguration': {
-                            'numberOfResults': 50
-                        }
-                    },
-                    'generationConfiguration': {
-                        'promptTemplate': {
-                            'textPromptTemplate': text_prompt_template,
-                        },
-                        'inferenceConfig': {
-                            'textInferenceConfig': {
-                                'temperature': 0,
-                                'topP': 0.9,
-                                'maxTokens': 2048
-                            },
-                        },
-                    },
-                },
-            },
-        )
+        agent = ResearchAgent()
+        result = agent.plan_and_act(query, max_steps=10)
 
-        # Parse the response
-        parsed_response = parse_retrieve_and_generate_response(response)
+        if result.get("error"):
+            error_type = result.get("error")
+            error_message = result.get("message", "Research agent encountered an error")
 
-        # Format the final response
-        if parsed_response.get('textResponse'):
-            body = f"{parsed_response['textResponse']}\n\n{parsed_response.get('refResponse', '')}"
-        else:
-            body = "Sorry, I don't know."
+            # Return error in the expected format
+            return {
+                'ask_aws_advice': {
+                    'Error': error_message,
+                    'ErrorType': error_type
+                }
+            }
 
-        result = {
-            "ask_aws_advice": body
+        # Extract the final response
+        final_response = result.get("final_response", "")
+
+        if not final_response:
+            return {
+                'ask_aws_advice': "I apologize, but I was unable to generate a response. Please try rephrasing your question."
+            }
+
+        # Return successful response in the expected format
+        return {
+            "ask_aws_advice": final_response
         }
-        # print("Ops Knowledge response: ", json.dumps(result, indent=2))
-        return result
 
     except Exception as e:
-        print(f"Error querying AWS knowledge base: {str(e)}")
+        error_msg = f"Unexpected error in ask_aws_advice: {str(e)}"
+        import traceback
+        traceback.print_exc()
         return {
             'ask_aws_advice': {
-                'InvokeKbError': f"Error: {str(e)}"
+                'ExecutionError': error_msg
             }
         }
 
@@ -561,37 +524,6 @@ def handle_tool_call(tool_name, tool_input):
         print(f'Error executing {tool_name} with input {json.dumps(tool_input, indent=2)}')
         return {"error": f"Error executing {tool_name}: {str(e)}"}
 
-def get_supported_tools():
-    """
-    Read tool specifications from tool_specs.json and define all supported tools
-    """
-    # Get the directory of the current file
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Path to the tool_specs.json file
-    json_path = os.path.join(current_dir, 'tool_specs.json')
-
-    # Initialize the tools dictionary
-    tools = {}
-
-    try:
-        # Read and parse the JSON file
-        with open(json_path, 'r') as file:
-            tool_specs = json.load(file)
-
-        # Iterate through all supported tools
-        for tool_spec in tool_specs.get('SupportedTools', []):
-            name = tool_spec.get('name')
-            description = tool_spec.get('description')
-            parameters = tool_spec.get('parameters')
-
-            # Define the tool using the existing function
-            if name and description and parameters:
-                tools[name] = define_tool(name, description, parameters)
-
-        return tools
-    except Exception as e:
-        print(f"Error loading tool specifications: {str(e)}")
-        return {}
 
 def parse_retrieve_and_generate_response(rag_output):
     """
@@ -638,43 +570,6 @@ def parse_retrieve_and_generate_response(rag_output):
         'refResponse': ref_response
     }
 
-def summarize_pna(agent_id, results):
-    if not results:
-        return "No PlanAndAct results available."
-
-    summary = f"""
-# {agent_id} PlanAndAct Summary
-## User Query
-{results['query']}
-
-## Overview
-- PlanAndAct steps: {results['steps']}
-- Tools used: {len(results['tool_calls'])}
-
-## Tools Used
-"""
-
-    # Group tool calls by tool type
-    tool_usage = {}
-    for call in results['tool_calls']:
-        tool_name = call['tool']
-        if tool_name not in tool_usage:
-            tool_usage[tool_name] = []
-        tool_usage[tool_name].append(call['input'])
-
-    # Add tool usage to summary
-    for tool_name, calls in tool_usage.items():
-        summary += f"\n### {tool_name.capitalize()}\n"
-        summary += f"- Used {len(calls)} times\n"
-        for i, call in enumerate(calls, 1):
-            summary += f"- Call {i} Parameters: `{json.dumps(call)}`\n"
-        if len(calls) > 3:
-            summary += f"- ...and {len(calls) - 3} more\n"
-
-    # Add the final response
-    summary += f"\n## Final Response\n\n{results['final_response']}\n"
-
-    return summary
 
 def invoke_claude_with_cache(messages, system_prompt, tools, cache=False, max_tokens=4096):
     # Create cache check point

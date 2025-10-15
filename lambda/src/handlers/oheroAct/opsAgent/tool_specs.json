@@ -34,13 +34,13 @@
         },
         {
             "name": "ask_aws_advice",
-            "description": "Ask in natural language for any advice from an AWS expert who can provide step-by-step guidance and detailed workable examples.",
+            "description": "Ask in natural language for any advice from an AWS expert who can provide step-by-step guidance and workable examples.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Query in natural language (e.g., 'Give me detailed guidance on how to create an automation runbook to upgrade EKS cluster to the latest version and provide me with a sample runbook.')"
+                        "description": "Query in natural language; Use specific technical terms rather than general phrases;Include service names to narrow results (e.g., 'S3 bucket versioning' instead of just 'versioning'); Use quotes for exact phrase matching (e.g., 'AWS Lambda function URLs')"
                     }
                 },
                 "required": [

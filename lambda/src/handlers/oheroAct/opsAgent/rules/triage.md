@@ -36,7 +36,7 @@ flowchart TD
 - When creating an issue ticket, ***make sure it contains*** the following required fields:
     1. Issue title — A concise summary of the impact or significance of event.
     2. Issue description — The detailed description of the issue.
-    3. Recommended actions — Step-by-step guidance and examples provided by AskAWS consultant.
+    3. Recommended actions — Step-by-step guidance, examples, reference sources provided by AskAWS consultant.
     4. Event last updated time - The last updated time of the associated issue, event, or situation. It is very important for determining the immediacy of the associated event. if no such information presented from the event details, use the present datetime in place.
     5. Impacted account(s) — The affected AWS account id(s) if any.
     6. Impacted resource(s) — The affected resource(s) if any.

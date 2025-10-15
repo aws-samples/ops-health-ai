@@ -303,7 +303,6 @@ sequenceDiagram
 
   - `OpsHealthKnowledgeBase` - Health event knowledge (Titan Embed Text v2, no chunking)
   - `OpsSecHubKnowledgeBase` - Security findings knowledge (Titan Embed Text v2, fixed size chunking)
-  - `AskAwsKnowledgeBase` - AWS documentation (Web crawler data source, fixed size chunking)
 
 - **Lambda Functions**:
 
@@ -470,7 +469,6 @@ flowchart TD
 - **Bedrock Data Sources**: 
   - `OpsHealthDataSource` (S3-based, no chunking)
   - `OpsSecHubDataSource` (S3-based, fixed size chunking)
-  - `AskAwsDataSource` (Web crawler, fixed size chunking)
 - **SQS Queues**: Buffered sync operations (`BufferHealthKbSyncSqs`, `BufferSechubKbSyncSqs`)
 
 #### Event Interactions:
