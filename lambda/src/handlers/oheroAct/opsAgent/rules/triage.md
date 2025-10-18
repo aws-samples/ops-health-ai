@@ -7,7 +7,7 @@
     - You MUST follow the Triage Logic Flow chart EXACTLY as defined. Do not introduce additional decision points or conditional logic not shown in the flow chart
     - Use 'Ticketing Guideline' for any ticket actions
 - **MANDATORY VALIDATION PROCESS**:
-Before making ANY decision, you MUST validate all decision rules are applied and confirm your decision matches the flow chart logic.
+Before making ANY decision, you MUST validate all decision rules are applied according to the flow chart logic and confirm your actions triaged to all stakeholders identified.
 - **Output Format**:
     - Begin with [STAGE: TRIAGE]
     - Complete the MANDATORY VALIDATION PROCESS above
