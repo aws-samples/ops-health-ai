@@ -198,7 +198,6 @@ graph TB
   - `TransientPayloadsBucket` - Large event payloads
 
 - **EventBridge Custom Bus**: Central event routing hub (`OheroEventBus`)
-- **Bedrock Guardrails**: AI safety configuration (`BedrockGuardrail` and `BedrockGuardrailVersion`)
 
 #### Event Interactions:
 

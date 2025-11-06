@@ -20,8 +20,6 @@ export class StatefulStack extends cdk.Stack {
   public readonly teamManagementTable: dynamodb.ITable
   public readonly webSocketConnectionsTable: dynamodb.ITable
   public readonly oheroEventBus: events.IEventBus
-  public readonly bedrockGuardrail: bedrock.CfnGuardrail
-  public readonly bedrockGuardrailVersion: bedrock.CfnGuardrailVersion
 
   constructor(scope: Construct, id: string, props: StatefulProps) {
     super(scope, id, props);
@@ -286,56 +284,6 @@ export class StatefulStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING
       },
       timeToLiveAttribute: 'ttl', // Auto-cleanup stale connections
-    });
-    /*************************************************************************************** */
-
-
-
-    /******************* Create a guardrail configuration for the bedrock agents *****************/
-    this.bedrockGuardrail = new bedrock.CfnGuardrail(this, 'BedrockGuardrail', {
-      name: 'BedrockGuardrail',
-      description: 'guardrail configuration for the bedrock agents',
-      blockedInputMessaging: 'I cannot accept your prompt by Guardrails.',
-      blockedOutputsMessaging:'I cannot answer that as the response has been blocked by Guardrails.',
-      contentPolicyConfig: {
-        filtersConfig: [
-          {
-            inputStrength: 'NONE',
-            outputStrength: 'NONE',
-            type: 'PROMPT_ATTACK'
-          },
-          {
-            inputStrength: 'HIGH',
-            outputStrength: 'HIGH',
-            type: 'MISCONDUCT'
-          },
-          {
-            inputStrength: 'HIGH',
-            outputStrength: 'HIGH',
-            type: 'INSULTS'
-          },
-          {
-            inputStrength: 'HIGH',
-            outputStrength: 'HIGH',
-            type: 'HATE'
-          },
-          {
-            inputStrength: 'HIGH',
-            outputStrength: 'HIGH',
-            type: 'SEXUAL'
-          },
-          {
-            inputStrength: 'HIGH',
-            outputStrength: 'HIGH',
-            type: 'VIOLENCE'
-          },
-        ]
-      }
-    });
-
-    this.bedrockGuardrailVersion = new bedrock.CfnGuardrailVersion(this, 'BedrockGuardrailVersion', {
-      guardrailIdentifier: this.bedrockGuardrail.attrGuardrailId,
-      description: "latest version of the guardrail configuration",
     });
     /*************************************************************************************** */
 

@@ -26,7 +26,6 @@ export interface OpsHealthAgentProps extends cdk.StackProps {
   oheroEventBus: events.IEventBus
   sourceEventDomains: string[]
   appEventDomainPrefix: string
-  guardrailArn: string
   teamManagementTableName: string
   // mockupSlackChannelId: string
 }
@@ -91,10 +90,6 @@ export class OpsHealthAgentStack extends cdk.Stack {
         maxTokens: 1000,
         overlapPercentage: 10,
       })
-    });
-
-    const importedGuardrail = bedrock.Guardrail.fromGuardrailAttributes(this, 'TestGuardrail', {
-      guardrailArn: props.guardrailArn
     });
 
     const healthBufferKbSyncSqs = new sqs.Queue(this, 'BufferHealthKbSyncSqs', {
@@ -179,7 +174,8 @@ export class OpsHealthAgentStack extends cdk.Stack {
       handler: 'app.lambda_handler',
       timeout: cdk.Duration.seconds(900), // long duration to accommodate throttling retries, make sure your AWS account and region has the appropriate quota for used LLMs
       memorySize: 256,
-      architecture: lambda.Architecture.ARM_64,
+      // architecture: lambda.Architecture.ARM_64,
+      architecture: lambda.Architecture.X86_64, // Arch choice needs to be consistent with what is defined in SAM template.yaml file.
       reservedConcurrentExecutions: 1, // Allowed concurrency set to 1 to accommodate LLM API throttling retries, make sure your AWS account and region has the appropriate API quota for used LLMs if faster processing speed needed.
       environment: {
         MEM_BUCKET: props.transientPayloadsBucketName,
@@ -189,9 +185,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
         TICKET_TABLE: props.ticketManagementTableName,
         EVENT_SOURCE_NAME: `${props.appEventDomainPrefix}.ops-orchestration`,
         EVENT_BUS_NAME: props.oheroEventBus.eventBusName,
-        TEAM_TABLE: props.teamManagementTableName,
-        BEDROCK_GUARDRAIL_ID: importedGuardrail.guardrailId,
-        BEDROCK_GUARDRAIL_VER: importedGuardrail.guardrailVersion
+        TEAM_TABLE: props.teamManagementTableName
       },
     });
     // ============================

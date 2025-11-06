@@ -6,8 +6,8 @@ Description: >
 Globals:
   Function:
     Architectures:
-        # - x86_64
-        - arm64
+        - x86_64
+        # - arm64
 
 Resources:
   OheroActFunction:
@@ -17,11 +17,9 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.12
       Timeout: 120
-      MemorySize: 128
+      MemorySize: 256
       Environment:
         Variables:
-          BEDROCK_GUARDRAIL_ID: "string"
-          BEDROCK_GUARDRAIL_VER: "string"
           EVENT_BUS_NAME: "string"
           EVENT_SOURCE_NAME: "string"
           KNOWLEDGE_BUCKET: "string"

@@ -136,7 +136,6 @@ const opsHealthAgentStack = new OpsHealthAgentStack(app, 'OheroHealthAgentStack'
   oheroEventBus: statefulStack.oheroEventBus,
   sourceEventDomains: sourceEventDomains,
   appEventDomainPrefix: appEventDomainPrefix,
-  guardrailArn: statefulStack.bedrockGuardrail.attrGuardrailArn,
   teamManagementTableName: statefulStack.teamManagementTable.tableName,
 });
 

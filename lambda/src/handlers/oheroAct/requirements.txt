@@ -1,3 +1,4 @@
 debugpy>=1.0,<2
-mcp
+strands-agents>=1.14.0
+strands-agents-tools>=0.2.13
 requests

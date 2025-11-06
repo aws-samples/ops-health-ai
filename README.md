@@ -11,11 +11,12 @@
 - **Event-Driven Architecture**: Highly decoupled microservices that can be configured independently based on your needs
 
 ## Main Change Log Since Blog Post
+- Refactored agents to use [Strands Agents](https://github.com/strands-agents/sdk-python) for cleaner code and better robustness 
+- Resilient and flexible model selection allowing automatic fallback at unexpected failures
 - Added web-based chat deployment option for easy trial and demo use
 - Replaced RAG-based 'ask_aws_advice' agent implementation to MCP-based, reducing dependency on self-maintained knowledge base
 - Auditable agent action report stored to S3 bucket
 - Optimization of Agent long term memory and knowledge retrieval
-- Modernized underlying LLMs to use Amazon Nova and Claud 3.7 Sonnet
 - User reported operational event as a source
 - Support of prompt caching
 - Old version archived to 'legacy' branch

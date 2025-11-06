@@ -106,7 +106,6 @@ OHERO's thinking is grounded by the OheroACT Framework (Acknowledge, Consult, Tr
 - **Structured workflows**: Step Functions ensure consistent processing paths
 - **Knowledge base consultation**: AI decisions are based on documented best practices
 - **Audit trails**: All decisions are logged to S3 with full traceability
-- **Guardrails**: Bedrock guardrails prevent inappropriate responses
 - **Deterministic routing**: EventBridge rules ensure events follow predictable paths
 
 ## Deployment & Configuration
@@ -334,7 +333,6 @@ The AI agent makes intelligent accept/discharge decisions based on several facto
 - **Encryption**: All data encrypted in transit and at rest
 - **IAM roles**: Least privilege access patterns
 - **Audit trails**: All AI decisions logged to S3 with timestamps
-- **Guardrails**: Bedrock guardrails prevent inappropriate content
 
 ### What data does OHERO store?
 
