@@ -130,7 +130,7 @@ graph TB
         S8[Knowledge Base<br/>Management Service]
     end
 
-    subgraph "Layer 3: Chat Integration (Optional - Choose One or Both)"
+    subgraph "Layer 3: Chat Integration (Optional - Choose One)"
         S5[Slack Chat Service<br/>NOTIFICATION_CHANNEL=slack]
         S6[Web Chat Service<br/>NOTIFICATION_CHANNEL=webchat]
     end
@@ -400,7 +400,7 @@ flowchart TD
 ### Service 6: Web Chat Service
 
 **Implementation**: `WebFrontendStack` + `OpsOrchestrationStack`
-**Purpose**: Web-based chat interface as Slack alternative
+**Purpose**: Web-based chat interface used for trial or demo purpose, as Slack alternative
 
 #### Components:
 
@@ -506,7 +506,7 @@ graph TD
         L2A --> L2B
     end
 
-    subgraph "Layer 3: Chat Integration (Optional - Choose One or Both)"
+    subgraph "Layer 3: Chat Integration (Optional - Choose One)"
         L3A[Slack Chat Service<br/>NOTIFICATION_CHANNEL=slack]
         L3B[Web Chat Service<br/>NOTIFICATION_CHANNEL=webchat]
     end

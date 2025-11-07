@@ -12,29 +12,29 @@
 
 ## Main Change Log Since Blog Post
 - Refactored agents to use [Strands Agents](https://github.com/strands-agents/sdk-python) for cleaner code and better robustness 
-- Resilient and flexible model selection allowing automatic fallback at unexpected failures
-- Added web-based chat deployment option for easy trial and demo use
-- Replaced RAG-based 'ask_aws_advice' agent implementation to MCP-based, reducing dependency on self-maintained knowledge base
+- Flexible Model Selection: Multi-LLM support with automatic fallback for enhanced reliability
+- Added standalone web chat option for easy trial and demo use without Slack requirements
+- Replaced RAG-based research agent implementation to MCP-based, reducing dependency and cost on self-maintained knowledge base
 - Auditable agent action report stored to S3 bucket
 - Optimization of Agent long term memory and knowledge retrieval
-- User reported operational event as a source
-- Support of prompt caching
+- Support of user reported free-form operational event as a source
+- Support of prompt caching for token usage efficiency
 - Old version archived to 'legacy' branch
 
 ## Screenshots of Usage
-<img src="./screenshots/screenshot1.png" alt="Web Chat Interface">
+<img src="./screenshots/screenshot1.png" alt="Chat Interface">
 
 ## Architecture Overview
 
-OHERO uses a highly decoupled, event-driven microservices architecture that supports incremental deployment:
+OHERO uses a highly decoupled, event-driven microservices architecture that enables incremental deployment and selective feature activation:
 
 <p align="left">
 <img src="./architecture.png"
   alt="Architectural diagram by seanxw">
 </p>
 
-## The OheroACT Framework Practiced by AI
-The OheroACT Framework is a set of customizable guidelines and rules that govern how OHERO assistant operates within the context of operational health management. It consists of three main stages: Acknowledge, Consult, and Triage. Each stage has its own customizable set of rules, permitted actions, and output formats.
+## The OheroACT Framework
+The OheroACT Framework defines how OHERO's AI agent processes operational events through three customizable stages: Acknowledge, Consult, and Triage. Each stage has configurable rules, actions, and response formats customizable to your organization's needs.
 
 ### OheroACT High-level Flow
 ```mermaid

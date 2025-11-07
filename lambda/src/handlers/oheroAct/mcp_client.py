@@ -40,7 +40,7 @@ class RemoteMCPClient:
 
 class MCPToolAdaptor:
     """
-    Adaptor to make MCP tools compatible with Strands agents.
+    Adaptor to make HTTP-based MCP tools compatible with Strands agents.
     """
 
     def __init__(self, base_url: str):
@@ -49,9 +49,8 @@ class MCPToolAdaptor:
     def list_tools_sync(self) -> List[Callable]:
         """
         List all available tools from the MCP server.
-        Returns: List of tool functions decorated with @tool, ready to use with Strands agents
         """
-        # Get tools from MCP server
+
         response = self.client.list_tools()
 
         if "result" not in response or "tools" not in response["result"]:
@@ -60,7 +59,6 @@ class MCPToolAdaptor:
         mcp_tools = response["result"]["tools"]
         print(f"Retrieved {len(mcp_tools)} tools from MCP server")
 
-        # Convert to Strands tools using @tool decorator
         agent_tools = []
         for mcp_tool in mcp_tools:
             strands_tool = self._convert_to_strands_tool(mcp_tool)
@@ -147,7 +145,7 @@ class MCPToolAdaptor:
                 except Exception as e:
                     return f"Tool execution failed: {str(e)}"
 
-            # Build the signature programmatically using inspect.Signature
+            # Build function signature
             params = []
             annotations = {}
 

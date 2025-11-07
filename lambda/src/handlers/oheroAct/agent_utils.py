@@ -15,9 +15,10 @@ from tools import (
 )
 from botocore.config import Config
 
+# custom boto3 retry config to be used by Bedrock calls
 retry_config = Config(
     retries={
-        'max_attempts': 1,  # No retries, just 1 attempt
+        'max_attempts': 1,
         'mode': 'standard'
     }
 )
@@ -33,15 +34,15 @@ class ResilientAgent(Agent):
                  enable_cache_prompt=False, enable_cache_tools=False, **kwargs):
 
         self.supported_models = [
-            # BedrockModel(
-            #     model_id="us.amazon.nova-pro-v1:0",
-            #     temperature=0.0,
-            #     streaming=False,
-            #     boto_session=session,
-            #     boto_client_config=retry_config,
-            #     cache_prompt="default" if enable_cache_prompt else None,
-            #     cache_tools="default" if enable_cache_tools else None
-            # ), # 4698ms
+            BedrockModel(
+                model_id="us.amazon.nova-pro-v1:0",
+                temperature=0.0,
+                streaming=False,
+                # boto_session=session,
+                boto_client_config=retry_config,
+                cache_prompt="default" if enable_cache_prompt else None,
+                cache_tools="default" if enable_cache_tools else None
+            ), # 4698ms
             BedrockModel(
                 model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
                 temperature=0.0,
@@ -83,18 +84,17 @@ class ResilientAgent(Agent):
                 cache_tools="default" if enable_cache_tools else None
             ), # 22273ms
         ]
-        # Store configuration for fallback and retry logic
+
         self.model_idx = model_idx
         self.max_retries_per_model = max_retries_per_model
         self.retry_delay = retry_delay
-        # Simply use the model at the specified index
+
         primary = self.supported_models[model_idx]
         super().__init__(model=primary, **kwargs)
 
     async def invoke_async(self, prompt=None, **kwargs):
         """
         Override invoke_async method with retry-then-fallback logic.
-        Handles: agent("prompt"), swarm(task), and agent.stream_async("prompt")
         """
         import asyncio
         last_error = None
@@ -110,14 +110,12 @@ class ResilientAgent(Agent):
                 try:
                     self.model = model
 
-                    # Log retry/fallback attempts (but not the first attempt of first model)
                     if model_offset > 0 or retry_attempt > 0:
                         print(f"[Retry] Model {model_offset + 1}/{len(self.supported_models)}, "
                               f"Attempt {retry_attempt + 1}/{self.max_retries_per_model}: {model_id}")
 
                     result = await super().invoke_async(prompt, **kwargs)
 
-                    # Log success for retry/fallback attempts
                     if model_offset > 0 or retry_attempt > 0:
                         print(f"[Success] ✓ {model_id}")
 
@@ -128,16 +126,14 @@ class ResilientAgent(Agent):
                     error_type = type(e).__name__
                     print(f"[Failed] ✗ {model_id}: {error_type}")
 
-                    # If not last retry for this model, wait before retrying
                     if retry_attempt < self.max_retries_per_model - 1:
                         print(f"[Wait] Retrying in {self.retry_delay}s...")
                         await asyncio.sleep(self.retry_delay)
-                    # If last retry for this model but not last model, move to next
+
                     elif model_offset < len(self.supported_models) - 1:
                         print(f"[Fallback] Moving to next model...")
                         break
 
-            # If we exhausted retries for this model and it's not the last, continue to next
             if model_offset < len(self.supported_models) - 1:
                 continue
 
@@ -160,14 +156,7 @@ class ContextVisualizationHook(HookProvider):
         registry.add_callback(AfterModelCallEvent, self.on_after_model_call)
 
     def get_complete_history(self, agent_name: str):
-        """Get complete accumulated conversation history for an agent.
-
-        Args:
-            agent_name: Name of the agent
-
-        Returns:
-            List of all messages accumulated across all invocations
-        """
+        """Get complete accumulated conversation history for an agent."""
         return self.agent_histories.get(agent_name, [])
 
     def on_before_model_call(self, event: BeforeModelCallEvent):
@@ -175,13 +164,10 @@ class ContextVisualizationHook(HookProvider):
 
         agent_name = event.agent.name
 
-        # Accumulate messages for this agent
         if agent_name not in self.agent_histories:
             self.agent_histories[agent_name] = []
 
-        # Add current messages to accumulated history (avoiding duplicates)
         for msg in event.agent.messages:
-            # Simple duplicate check: only add if not already in history
             if msg not in self.agent_histories[agent_name]:
                 self.agent_histories[agent_name].append(msg)
 
@@ -195,7 +181,6 @@ class ContextVisualizationHook(HookProvider):
         print("=" * 80)
 
         # Extract and display the messages being sent to the LLM
-        # Access the agent's message history
         messages = event.agent.messages
 
         print(f"\nTotal Messages Being Sent: {len(messages)}")
@@ -297,8 +282,7 @@ class ContextVisualizationHook(HookProvider):
 
 def create_ops_agent(hook, conversational) -> ResilientAgent:
     """Create the OpsAgent with operational tools."""
-    # Load system prompt from files
-    # Set up the prompts directory path (relative to this file)
+    # Load system prompt from modular files
     prompts_dir = os.path.join(os.path.dirname(__file__), "ops_agent")
 
     # Load the system.md file
@@ -337,8 +321,8 @@ def create_ops_agent(hook, conversational) -> ResilientAgent:
 
     return ResilientAgent(
         name="ops_agent",
-        model_idx=1,
-        enable_cache_prompt=True,  # Enable system prompt caching
+        model_idx=2, # points to the preferred model in list of supported models
+        enable_cache_prompt=True,
         description="Handles operational events and creates tickets",
         hooks=[hook],
         callback_handler=None,
@@ -356,16 +340,8 @@ def create_ops_agent(hook, conversational) -> ResilientAgent:
 
 
 def create_research_agent(hook, mcp_client) -> ResilientAgent:
-    """Create the ResearchAgent with MCP knowledge tools.
+    """Create the ResearchAgent with MCP knowledge tools."""
 
-    Args:
-        hook: Hook provider for visualization
-        mcp_client: MCPClient instance for loading knowledge tools
-
-    Returns:
-        ResilientAgent configured with MCP tools
-    """
-    # Load MCP tools dynamically from the knowledge server
     print("Loading MCP tools from knowledge server...")
     mcp_tools = mcp_client.list_tools_sync()
     print(f"Successfully loaded {len(mcp_tools)} MCP tools")
@@ -378,9 +354,9 @@ def create_research_agent(hook, mcp_client) -> ResilientAgent:
 
     return ResilientAgent(
         name="research_agent",
-        model_idx=0,
-        enable_cache_prompt=True,  # Enable system prompt caching
-        enable_cache_tools=True,    # Enable tool caching (MCP tools)
+        model_idx=0, # points to the preferred model in list of supported models
+        enable_cache_prompt=True,
+        enable_cache_tools=True,
         description="Provides technical research and recommendations using knowledge tools",
         hooks=[hook],
         callback_handler=None,
@@ -390,24 +366,15 @@ def create_research_agent(hook, mcp_client) -> ResilientAgent:
 
 
 def load_agent_memory(agent, session_id: str):
-    """Load agent conversation history from S3.
+    """Load agent conversation history from S3."""
 
-    Args:
-        agent: Agent object to load messages into
-        session_id: Session identifier for the memory file
-
-    Returns:
-        str: S3 key where the file was loaded from, or None if load failed
-    """
     s3_key = f"{agent.name}-memory/{session_id}.json"
 
     try:
-        # Get the object from S3
         response = s3_client.get_object(Bucket=mem_bucket, Key=s3_key)
         json_content = response['Body'].read().decode('utf-8')
         messages = json.loads(json_content)
 
-        # Load messages into agent
         agent.messages.extend(messages)
 
         print(f"✓ Agent memory loaded from S3: s3://{mem_bucket}/{s3_key}")
@@ -424,25 +391,15 @@ def load_agent_memory(agent, session_id: str):
 
 
 def save_agent_memory(agent, session_id: str, hook):
-    """Save agent conversation history to S3 as JSON.
+    """Save agent conversation history to S3 as JSON."""
 
-    Args:
-        agent: Agent object with conversation history
-        session_id: Session identifier for the memory file
-        hook: ContextVisualizationHook with accumulated complete history
-
-    Returns:
-        str: S3 key where the file was saved, or None if save failed
-    """
     s3_key = f"{agent.name}-memory/{session_id}.json"
 
-    # Get complete history from hook (accumulates across all invocations)
     complete_history = hook.get_complete_history(agent.name)
 
     # Save in original format for easy loading
     json_content = json.dumps(complete_history, indent=2)
 
-    # Save to S3
     try:
         s3_client.put_object(
             Bucket=mem_bucket,
@@ -460,24 +417,16 @@ def save_agent_memory(agent, session_id: str, hook):
 
 
 def save_knowledge(agent, result, task: str, session_id: str):
-    """Save agent execution results to console and S3 as markdown.
+    """Save agent execution results to console and S3 as markdown."""
 
-    Args:
-        agent: The agent object that executed the task
-        result: The AgentResult from the agent's execution
-        task: The original task/query
-        session_id: Session identifier
-    """
     s3_key = f"ohero-knowledge/{session_id}.md"
 
-    # Get agent name from the agent object
     agent_name = agent.name if hasattr(agent, 'name') else 'unknown_agent'
 
-    # Build markdown content
     markdown_lines = []
 
     # Header
-    markdown_lines.append("# OHERO Process Results")
+    markdown_lines.append("# OHERO Process Report")
     markdown_lines.append(f"\n**Timestamp:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
     markdown_lines.append(f"\n## Original Task\n\n```\n{task}\n```")
     markdown_lines.append("\n---\n")
@@ -518,20 +467,17 @@ def save_knowledge(agent, result, task: str, session_id: str):
                 markdown_lines.append(f"  - Success Rate: {overall_success_rate:.1f}% ({total_tool_success}/{total_tool_calls} successful)")
                 markdown_lines.append(f"  - Total Tool Time: {total_tool_time:.3f}s")
 
-    # Extract usage statistics from result.metrics.accumulated_usage (official Strands SDK way)
+    # Extract usage statistics
     if hasattr(result, 'metrics') and hasattr(result.metrics, 'accumulated_usage'):
         usage = result.metrics.accumulated_usage
         markdown_lines.append("\n### Token Usage Statistics\n")
 
-        # Input tokens
         input_tokens = usage.get('inputTokens', 0)
         cache_read_tokens = usage.get('cacheReadInputTokens', 0)
         cache_write_tokens = usage.get('cacheWriteInputTokens', 0)
 
-        # Output tokens
         output_tokens = usage.get('outputTokens', 0)
 
-        # Total tokens
         total_tokens = usage.get('totalTokens', 0)
 
         markdown_lines.append(f"- **Total Tokens:** {total_tokens:,}")
@@ -590,11 +536,9 @@ def save_knowledge(agent, result, task: str, session_id: str):
 
             markdown_lines.append("\n---\n")
 
-    # Final Output
     markdown_lines.append("## Final Output\n")
     markdown_lines.append(f"\n### Agent: `{agent_name}`\n")
 
-    # Extract text content from the AgentResult
     if hasattr(result, 'message'):
         message = result.message
         content = message.get('content', [])
@@ -607,10 +551,9 @@ def save_knowledge(agent, result, task: str, session_id: str):
     # Combine all lines
     markdown_content = "\n".join(markdown_lines)
 
-    # Print markdown content to console
+    # Print markdown content to console for debug
     print("\n" + markdown_content)
 
-    # Save to S3
     try:
         s3_client.put_object(
             Bucket=knowledge_bucket,

@@ -36,8 +36,8 @@
 - [Why doesn't my test event show up in chat when I send it again?](#why-doesnt-my-test-event-show-up-in-chat-when-i-send-it-again)
 - [Why do my test events keep getting rejected/discharged by the OHERO AI agent?](#why-do-my-test-events-keep-getting-rejecteddischarged-by-the-ohero-ai-agent)
 
-### Security & Compliance
-- [How does OHERO handle sensitive data?](#how-does-ohero-handle-sensitive-data)
+### Security
+- [How does OHERO handle data?](#how-does-ohero-handle-sensitive-data)
 - [What data does OHERO store?](#what-data-does-ohero-store)
 - [How long is data retained?](#how-long-is-data-retained)
 - [Can I deploy OHERO in a private network?](#can-i-deploy-ohero-in-a-private-network)
@@ -56,16 +56,15 @@ Yes! OHERO can operate in "headless mode" where the AI processes events automati
 
 ### Can OHERO run with other chat clients like TEAMS?
 
-Not out-of-the-box, but using the same pattern of integration OHERO has with Slack, user can further build similar integrations with other collaboration tools like TEAMS.
+Not out-of-the-box, but using the same pattern of integration OHERO has with Slack, user can further build similar integrations with other collaboration tools like TEAMS. For only trying the solution, OHERO included a simple web-based interface without messaging client dependencies.
 
 ### Can I customize the OHERO's behavior?
 
-Yes, through customization of Acknowledge, Consult, and Triage phases in the OheroACT framework, you can reflect your organization's runbooks and policies in OHERO's practice
+Yes, through customization of Acknowledge, Consult, and Triage phases in the OheroACT framework, you can reflect your organization's runbooks and policies in OHERO's practice. You can also extend OHERO's tools by implementing integrations (e.g. MCP servers) to other systems of your choice.
 
 ### What AI models does OHERO use?
 
-- **Primary**: Amazon Nova and Claude 3.7 Sonnet with prompt caching
-- **Embeddings**: Titan Embed Text v2 for knowledge base search
+OHERO uses a resilient design that can fallback between a range of LLMs, you can customize your choice of LLMs by overriding the default list. the current default configuration is defined in /lambda/src/handlers/oheroAct/agent_utils.py (ResilientAgent Class).
 
 ### Can I add more operational event sources to OHERO?
 
@@ -103,10 +102,8 @@ You can also integrate custom applications by:
 
 OHERO's thinking is grounded by the OheroACT Framework (Acknowledge, Consult, Triage) with:
 
-- **Structured workflows**: Step Functions ensure consistent processing paths
-- **Knowledge base consultation**: AI decisions are based on documented best practices
+- **Knowledge base and official MCP**: AI decisions are based on your documented knowledge and/or official MCP server provided knowledge
 - **Audit trails**: All decisions are logged to S3 with full traceability
-- **Deterministic routing**: EventBridge rules ensure events follow predictable paths
 
 ## Deployment & Configuration
 
@@ -146,8 +143,7 @@ The multi-account setup is recommended for organizations with existing account s
 
 - You don't have Slack or lack workspace permissions
 - You want a quick trial/demo setup
-- You prefer a self-contained solution
-- You're evaluating the system before committing to Slack integration
+- You're evaluating the system before committing to Slack or other messaging client integration
 
 ### Can I change the notification channel after deployment?
 
@@ -175,7 +171,7 @@ Add entries to the TeamManagementTable in DynamoDB:
 
 The microservices architecture provides:
 
-- **Independent deployment**: Deploy only the services you need
+- **Modular feature enablement**: Deploy and enable only the features/services you need
 - **Fault isolation**: One service failure doesn't affect others
 - **Scalability**: Scale services independently based on load
 - **Technology flexibility**: Different services can use optimal technologies
@@ -198,7 +194,6 @@ After deploying with `NOTIFICATION_CHANNEL=webchat`:
 
 1. Find the "WebsiteUrl" in the CloudFormation outputs
 2. Open the URL in a modern web browser
-3. Select your team from the dropdown
 
 ### Why isn't my Slack app receiving events?
 
@@ -227,22 +222,20 @@ Currently, only one notification method can be active at a time. However, the AI
 
 1. **Check EventBridge**: Verify events are reaching the custom event bus
 2. **State Machine logs**: Review Step Function execution logs
-3. **Lambda logs**: Check CloudWatch logs for processing functions
+3. **Lambda logs**: Check CloudWatch logs for processing functions such as the 'OheroACT' function
 4. **DynamoDB**: Verify events are being stored in EventManagementTable
 
 ### The web chat isn't loading. What's wrong?
 
 1. **CloudFront**: Check if the distribution is deployed and accessible
 2. **S3 deployment**: Verify frontend files are uploaded to S3
-3. **API Gateway**: Ensure WebSocket API is properly configured
-4. **CORS**: Check browser console for CORS errors
 
 ### How do I monitor OHERO's performance?
 
+- **S3 Audit Reports**: Review AI processing reports in 'aws-ops-health-xxx' S3 bucket
 - **CloudWatch Logs**: Monitor Lambda function execution
 - **Step Functions**: Track state machine executions and failures
 - **EventBridge Metrics**: Monitor event processing rates
-- **S3 Audit Logs**: Review AI decision logs for accuracy
 
 ### Lambda functions are timing out. How do I fix this?
 
@@ -316,7 +309,7 @@ In production, AWS Health events naturally have unique ARNs for different incide
 
 ### Why do my test events keep getting rejected/discharged by the OHERO AI agent?
 
-The AI agent makes intelligent accept/discharge decisions based on several factors. If your events are being discharged, here are the most common reasons and solutions:
+The AI agent makes intelligent accept/discharge decisions based on several factors. If your events are being unexpectedly accepted/discharged, here are the most common reasons and solutions:
 
 **Common Reasons for Event Discharge:**
 
@@ -326,9 +319,9 @@ The AI agent makes intelligent accept/discharge decisions based on several facto
 2. **Incorrect organization reference**
 **Check**: Go to `lambda/src/handlers/oheroAct/rules/organization_data.md` to verify organization attributes are reflecting your own test data, e.g. account ID matching that of the test events, owner team id matching your onboarded teams in the TeamManagementTable.
 
-## Security & Compliance
+## Security
 
-### How does OHERO handle sensitive data?
+### How does OHERO handle data?
 
 - **Encryption**: All data encrypted in transit and at rest
 - **IAM roles**: Least privilege access patterns

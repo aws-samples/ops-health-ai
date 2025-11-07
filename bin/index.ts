@@ -21,13 +21,13 @@ const healthEventDomains = [
 ]
 
 const sechubEventDomains = [
-  'aws.securityhub',
+  // 'aws.securityhub',
   'ohero.securityhub', //custom prefixed event source for mockup test events
 ]
 
 const sourceEventDomains = [
   ...healthEventDomains,
-  // ...sechubEventDomains,
+  ...sechubEventDomains,
   //...taEventDomains,
 ]
 

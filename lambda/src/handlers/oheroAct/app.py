@@ -25,23 +25,18 @@ def lambda_handler(event, context):
         session_id = str(uuid.uuid4())
         print('Could not fetch existing session id, using generated instead...')
 
-    # Create context visualization hook
     hook = ContextVisualizationHook()
 
-    # Create ops_agent with research_knowledge tool
-    # The research_knowledge tool will internally create research_agent when needed
     ops_agent = create_ops_agent(hook, ask_user_question_allowed)
 
-    # Load conversation history from S3 into ops_agent
+    # Load conversation history from S3 if previous session exists
     load_agent_memory(ops_agent, session_id)
 
     # Extract query from event payload
     task = event["detail"]["event"]["text"]
     payload_s3_key = event["detail"]["event"].get("payloadS3Key", None)
     if payload_s3_key:
-        # Get the object from S3
         response = s3_client.get_object(Bucket=transient_payload_bucket, Key=payload_s3_key)
-        # Read the content
         task = response['Body'].read().decode('utf-8')
         print(f'Getting prompt from event payload stored in S3 with object key={payload_s3_key}')
 
@@ -63,5 +58,4 @@ def lambda_handler(event, context):
         "ExpiresAt": str(session_expires_at)
     }
 
-    # print(f"\nSWARM FINAL RESPONSE:\n {final_response}")
     return final_response

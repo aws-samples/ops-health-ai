@@ -39,7 +39,7 @@ The solution comes with integration with Slack as its default user interface. Fo
 
 There are no actions required for this step if you opt for web chat.
 
-Steps If opt for using Slack
+Steps if opt for using Slack
 1. Create a [Slack app](https://api.slack.com/apps) from the manifest template - copy/paste the content of “slack-app-manifest.json” file included in this repository.
 2. Install your app into your workspace, take note of the “Bot User OAuth Token” value to be used in next steps.
 3. Take note of the “Verification Token” value under your app’s Basic Information, you will need it in next steps.
@@ -81,7 +81,7 @@ cdk bootstrap <replace with your AWS account id of the administration account>/<
 git clone https://github.com/aws-samples/ops-health-ai.git
 ```
 ### Build serverless packages
-NOTE: Depending on your build environment, you might want o change the arch type to 'x86' or 'arm' in the global parameter section of `lambda/src/template.yaml` file before sam build command
+**NOTE:** Depending on your build environment, you might want o change the arch type to 'x86' or 'arm' in the global parameter section of `lambda/src/template.yaml` file before sam build command
 ```zsh
 cd ops-health-ai
 npm install

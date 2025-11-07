@@ -475,40 +475,32 @@ def ask_aws(question: str) -> str:
 
     try:
         # Lazy initialization: create research agent only when first needed
-        # This is cached to avoid recreating the agent on every tool call
         if _research_agent_cache is None:
             from agent_utils import create_research_agent, ContextVisualizationHook
             from mcp_client import create_knowledge_mcp_client
 
             print("[ask_aws tool] Initializing research agent...")
 
-            # Create MCP client for knowledge tools
             mcp_client = create_knowledge_mcp_client()
 
-            # Create hook for research agent (separate instance for cleaner architecture)
             research_hook = ContextVisualizationHook()
 
-            # Create research agent with MCP tools and hook
             _research_agent_cache = create_research_agent(hook=research_hook, mcp_client=mcp_client)
 
             print("[ask_aws tool] Research agent initialized successfully")
 
-        # Invoke the research agent synchronously with the question
         result = _research_agent_cache(question)
 
-        # Extract the text response from the agent's result
         if hasattr(result, 'content') and len(result.content) > 0:
-            # Handle structured response
             response_text = ""
             for content_block in result.content:
                 if hasattr(content_block, 'text'):
                     response_text += content_block.text
             return response_text if response_text else str(result)
         else:
-            # Handle simple string response
             return str(result)
 
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        return f"Error consulting research agent: {str(e)}\n\nDetails:\n{error_details}"
+        return f"Error consulting AwsTAM agent: {str(e)}\n\nDetails:\n{error_details}"
