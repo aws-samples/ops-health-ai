@@ -44,15 +44,12 @@ def lambda_handler(event, context):
 
     # Save knowledge and agent memory
     save_knowledge(ops_agent, result, task, session_id)
-    save_agent_memory(ops_agent, session_id, hook)
-
-    # Extract the final result from ops_agent
-    final_agent_result = result
+    save_agent_memory(ops_agent, session_id)
 
     session_expires_at = int(datetime.now().timestamp() + 20 * 60)
     final_response = {
         "Output": {
-            "Text": str(final_agent_result).strip(),
+            "Text": str(result).strip(),
         },
         "SessionId": session_id,
         "ExpiresAt": str(session_expires_at)

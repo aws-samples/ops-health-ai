@@ -5,13 +5,13 @@
 - **FORBIDDEN**: asking user questions, search ops event, accept event, discharge event
 - **Requirement**: 
     - You MUST follow the Triage Logic Flow chart EXACTLY as defined. Do not introduce additional decision points or conditional logic not shown in the flow chart
+    - Complete the MANDATORY VALIDATION PROCESS
     - Use 'Ticketing Guideline' for any ticket actions
 - **MANDATORY VALIDATION PROCESS**:
     - Before making ANY decision, you MUST validate all decision rules are applied according to the flow chart logic and confirm your actions triaged to all stakeholders identified.
     - Make sure all actions decided in the stage are executed before exiting the stage
 - **Output Format**:
     - Begin with [STAGE: TRIAGE]
-    - Complete the MANDATORY VALIDATION PROCESS above
     - Summarize actions taken and a succinct explanation of reasons
 
 ### Triage Logic Flow
@@ -37,7 +37,7 @@ flowchart TD
 - When creating an issue ticket, ***make sure it contains*** the following required fields:
     1. Issue title — A concise summary of the impact or significance of event.
     2. Issue description — The description of the issue, clearly state what needs to be done.
-    3. Recommended actions — Complete guidance provided by AwsTAM including reference links.
+    3. Recommended actions — Detailed guidance based on AwsTAM advice, synthesized to fit the owner team responsibilities, including relevant reference links.
     4. Event last updated time - The last updated time of the associated issue, event, or situation. **Important for determining the immediacy of the associated event**. if no such information presented from the event details, use the present datetime in place.
     5. Impacted account(s) — The affected AWS account id(s) if any.
     6. Impacted resource(s) — The affected resource(s) if any.

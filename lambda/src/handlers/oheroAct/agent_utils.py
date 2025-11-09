@@ -40,8 +40,7 @@ class ResilientAgent(Agent):
                 streaming=False,
                 # boto_session=session,
                 boto_client_config=retry_config,
-                cache_prompt="default" if enable_cache_prompt else None,
-                cache_tools="default" if enable_cache_tools else None
+                cache_prompt="default" if enable_cache_prompt else None
             ), # 4698ms
             BedrockModel(
                 model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
@@ -147,29 +146,14 @@ class ContextVisualizationHook(HookProvider):
     def __init__(self, display_chars=5000):
         self.call_count = 0
         self.display_chars = display_chars
-        # Accumulate complete conversation history per agent
-        self.agent_histories = {}  # {agent_name: [all_messages]}
 
     def register_hooks(self, registry: HookRegistry) -> None:
         """Register hook callbacks with the registry."""
         registry.add_callback(BeforeModelCallEvent, self.on_before_model_call)
         registry.add_callback(AfterModelCallEvent, self.on_after_model_call)
 
-    def get_complete_history(self, agent_name: str):
-        """Get complete accumulated conversation history for an agent."""
-        return self.agent_histories.get(agent_name, [])
-
     def on_before_model_call(self, event: BeforeModelCallEvent):
         self.call_count += 1
-
-        agent_name = event.agent.name
-
-        if agent_name not in self.agent_histories:
-            self.agent_histories[agent_name] = []
-
-        for msg in event.agent.messages:
-            if msg not in self.agent_histories[agent_name]:
-                self.agent_histories[agent_name].append(msg)
 
         # Get model ID from the agent's model
         model_id = "unknown"
@@ -390,12 +374,12 @@ def load_agent_memory(agent, session_id: str):
         return None
 
 
-def save_agent_memory(agent, session_id: str, hook):
+def save_agent_memory(agent, session_id: str):
     """Save agent conversation history to S3 as JSON."""
 
     s3_key = f"{agent.name}-memory/{session_id}.json"
 
-    complete_history = hook.get_complete_history(agent.name)
+    complete_history = agent.messages
 
     # Save in original format for easy loading
     json_content = json.dumps(complete_history, indent=2)

@@ -1,10 +1,8 @@
 interface OheroConfig {
     websocketUrl: string;
     apiKey: string;
-    teamManagementTableName: string;
 }
 
-// Utility functions
 class MessageUtils {
     static extractText(message: IncomingMessage): string {
         return message.text || message.message || message.content || JSON.stringify(message);
@@ -236,13 +234,6 @@ class OheroWebChat {
             }
         });
 
-        // Auto-focus input when connected
-        this.elements.messageInput.addEventListener('focus', () => {
-            if (!this.isConnected) {
-                this.elements.messageInput.blur();
-            }
-        });
-
         // Channel selection
         this.elements.channelsList.addEventListener('click', (e: Event) => {
             const target = e.target as HTMLElement;
@@ -267,12 +258,9 @@ class OheroWebChat {
             const configData = await response.json();
             this.config = {
                 websocketUrl: configData.webSocketUrl || '',
-                apiKey: configData.apiKey || 'your-secure-api-key-change-this-value',
-                teamManagementTableName: configData.teamManagementTableName || ''
+                apiKey: configData.apiKey || ''
             };
 
-
-            this.initializeWebSocketUrl();
             this.updateUI();
 
             // Auto-connect after configuration is loaded
@@ -281,30 +269,17 @@ class OheroWebChat {
             }, 500);
 
         } catch (error) {
-            ErrorHandler.handle(error, 'Configuration loading', 'Failed to load configuration. Using defaults',
+            ErrorHandler.handle(error, 'Configuration loading', 'CRITICAL: Failed to load configuration',
                 (msg) => this.addSystemMessage(msg));
 
-            // Fallback to default config
-            this.config = {
-                websocketUrl: '',
-                apiKey: 'your-secure-api-key-change-this-value',
-                teamManagementTableName: ''
-            };
+            this.addSystemMessage('Application cannot start without valid configuration.');
+
+            this.updateConnectionStatus('disconnected');
             this.updateUI();
-
-            // Still try to auto-connect even with fallback config
-            setTimeout(() => {
-                this.connect();
-            }, 500);
+            // Do not set config or attempt connection
         }
     }
 
-    private initializeWebSocketUrl(): void {
-        // Validate WebSocket URL from config
-        if (!this.config?.websocketUrl) {
-            console.warn('No WebSocket URL found in configuration');
-        }
-    }
 
     public connect(): void {
         if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
@@ -316,7 +291,6 @@ class OheroWebChat {
             return;
         }
 
-        // Get WebSocket URL from config
         const websocketUrl = this.config.websocketUrl;
         if (!websocketUrl) {
             this.addSystemMessage('WebSocket URL not configured. Please check configuration.');
@@ -326,10 +300,7 @@ class OheroWebChat {
         this.updateConnectionStatus('connecting');
 
         try {
-            // Construct WebSocket URL with API key
             const wsUrl = `${websocketUrl}?apiKey=${encodeURIComponent(this.config.apiKey)}&userId=web-user`;
-
-
 
             this.websocket = new WebSocket(wsUrl);
 
@@ -375,15 +346,6 @@ class OheroWebChat {
         }
     }
 
-    public disconnect(): void {
-        this.stopHeartbeat();
-        if (this.websocket) {
-            this.websocket.close(1000, 'User disconnected');
-            this.websocket = null;
-        }
-        this.isConnected = false;
-        this.updateConnectionStatus('disconnected');
-    }
 
     private attemptReconnect(): void {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -556,7 +518,7 @@ class OheroWebChat {
         const channelsList = this.elements.channelsList;
         channelsList.innerHTML = '';
 
-        // Add default channel first
+        // Add default channel
         const defaultChannel = this.channels.get(this.DEFAULT_CHANNEL_ID);
         if (defaultChannel) {
             const channelElement = this.createChannelElement(this.DEFAULT_CHANNEL_ID, defaultChannel);
@@ -620,7 +582,7 @@ class OheroWebChat {
         // Update UI
         this.updateChannelsList();
         this.updateChannelHeader(channel);
-        this.renderMessages();
+        this.renderMessages(true); // Auto-scroll when switching channels
         this.cancelReply();
     }
 
@@ -664,7 +626,7 @@ class OheroWebChat {
 
         // Re-render messages if this is for the current channel
         if (message.channel === this.currentChannel) {
-            this.renderMessages();
+            this.renderMessages(true); // Auto-scroll when new message arrives
         } else {
             // Update channels list to show unread indicators
             this.updateChannelsList();
@@ -673,7 +635,7 @@ class OheroWebChat {
 
 
 
-    private renderMessages(): void {
+    private renderMessages(autoScroll: boolean = true): void {
         const messagesContainer = this.elements.chatMessages;
         messagesContainer.innerHTML = '';
 
@@ -689,7 +651,9 @@ class OheroWebChat {
             }
         });
 
-        this.scrollToBottom();
+        if (autoScroll) {
+            this.scrollToBottom();
+        }
     }
 
     private renderMessageThread(thread: MessageThread, container: HTMLElement): void {
@@ -727,7 +691,7 @@ class OheroWebChat {
                 hideRepliesBtn.textContent = 'Hide replies';
                 hideRepliesBtn.addEventListener('click', () => {
                     thread.isExpanded = false;
-                    this.renderMessages();
+                    this.renderMessages(false); // Don't auto-scroll when collapsing thread
                 });
 
                 const replyToThreadBtn = document.createElement('button');
@@ -748,7 +712,7 @@ class OheroWebChat {
                 showRepliesBtn.textContent = `${thread.replies.length} ${thread.replies.length === 1 ? 'reply' : 'replies'}`;
                 showRepliesBtn.addEventListener('click', () => {
                     thread.isExpanded = true;
-                    this.renderMessages();
+                    this.renderMessages(false); // Don't auto-scroll when expanding thread
                 });
                 container.appendChild(showRepliesBtn);
             }
@@ -899,7 +863,19 @@ class OheroWebChat {
 
         const timestamp = document.createElement('span');
         timestamp.className = 'message-timestamp';
-        timestamp.textContent = new Date(message.timestamp).toLocaleTimeString();
+
+        // Handle timestamp parsing with validation
+        try {
+            const date = new Date(message.timestamp);
+            if (isNaN(date.getTime())) {
+                // Invalid date, use current time
+                timestamp.textContent = new Date().toLocaleTimeString();
+            } else {
+                timestamp.textContent = date.toLocaleTimeString();
+            }
+        } catch (error) {
+            timestamp.textContent = new Date().toLocaleTimeString();
+        }
 
         header.appendChild(author);
         header.appendChild(timestamp);

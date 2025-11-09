@@ -173,7 +173,7 @@ export class OpsHealthAgentStack extends cdk.Stack {
       code: lambda.Code.fromAsset('lambda/src/.aws-sam/build/OheroActFunction'),
       handler: 'app.lambda_handler',
       timeout: cdk.Duration.seconds(900), // long duration to accommodate throttling retries, make sure your AWS account and region has the appropriate quota for used LLMs
-      memorySize: 256,
+      memorySize: 512,
       // architecture: lambda.Architecture.ARM_64,
       architecture: lambda.Architecture.X86_64, // Arch choice needs to be consistent with what is defined in SAM template.yaml file.
       reservedConcurrentExecutions: 1, // Allowed concurrency set to 1 to accommodate LLM API throttling retries, make sure your AWS account and region has the appropriate API quota for used LLMs if faster processing speed needed.

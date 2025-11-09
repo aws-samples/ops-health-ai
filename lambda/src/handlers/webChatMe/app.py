@@ -3,11 +3,10 @@ import json
 import boto3
 import uuid
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
-# Initialize AWS clients
 dynamodb_client = boto3.client('dynamodb')
-apigateway_client = None  # Will be initialized when needed
+apigateway_client = None
 
 # Environment variables
 connections_table_name = os.environ.get('CONNECTIONS_TABLE_NAME', 'WebSocketConnections')
@@ -47,27 +46,24 @@ def lambda_handler(event, context):
     # Extract channel from message (if present) and pass it through
     channel = message.get('channel')
 
-    # Normalize thread ID - handle DynamoDB format {"S": "value"} or plain string
+    # Normalize thread ID
     if thread_id:
         if isinstance(thread_id, dict):
             # Handle DynamoDB format - extract string value or generate new if not string type
             if 'S' in thread_id:
                 thread_id = thread_id['S']
             else:
-                # DynamoDB object but not string type - generate new threadId
                 current_time = time.time()
                 thread_id = f"{current_time:.6f}"
-        # If it's already a string, keep it as-is
     else:
-        # Generate thread ID if not provided (Slack timestamp format)
+        # Generate thread ID if not provided (aligns Slack timestamp format)
         current_time = time.time()
         thread_id = f"{current_time:.6f}"
 
-    # Add metadata to message
     message_with_metadata = {
         **message,
         'threadId': thread_id,
-        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
         'messageId': str(uuid.uuid4())
     }
 
@@ -102,7 +98,7 @@ def lambda_handler(event, context):
         failed_connections = []
 
         for connection in connections:
-            # Extract connectionId from DynamoDB item format
+            # Extract connectionId
             connection_id = connection['connectionId']['S']
             try:
                 client.post_to_connection(
@@ -133,7 +129,6 @@ def lambda_handler(event, context):
             except Exception as e:
                 context.log(f"Error cleaning up connection {failed_conn}: {str(e)}")
 
-        # Return success response
         return {
             'statusCode': 200,
             'body': {
@@ -176,4 +171,3 @@ def truncate_message(message_obj, max_length=4000):
             message_obj['text'] = truncated
 
     return message_obj
-
