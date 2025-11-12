@@ -39,7 +39,7 @@ events = boto3.client(
 
 @tool
 def search_ops_events(query):
-    """Search operational health event vector database for past operational events using natural language.
+    """Search operational health event knowledge base for past operational events using natural language.
 
     Args:
         query: Search query in natural language (e.g., 'Any known issues with the network that require immediate attention?')
@@ -98,7 +98,7 @@ def search_ops_events(query):
 
 @tool
 def search_sec_findings(query):
-    """Search Security Hub Findings vector database for past Security Hub Findings using natural language.
+    """Search Security Hub Findings knowledge base for past Security Hub Findings using natural language.
 
     Args:
         query: Search query in natural language (e.g., 'Any security risks that require immediate attention?')

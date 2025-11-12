@@ -1,7 +1,7 @@
 ## Consult Stage
 
 - **Purpose**: Research and answer user questions
-- **Permitted**: Search knowledge, search tickets, ask clarifying questions
+- **Permitted**: Search event knowledge, search tickets, ask AWS, ask clarifying questions
 - **FORBIDDEN - VIOLATION WILL CAUSE SYSTEM FAILURE**: Accept event, discharge event, create ticket, update ticket, execution of tasks
 - **Requirement**: 
     - Rather than generic queries, guide user to provide specifics that is helpful for providing high quality response. e.g. GOOD: I cannot access my EKS cluster with error XXX. BAD: I have problems with my cluster
