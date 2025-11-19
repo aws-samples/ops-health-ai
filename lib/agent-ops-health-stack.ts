@@ -27,7 +27,6 @@ export interface OpsHealthAgentProps extends cdk.StackProps {
   sourceEventDomains: string[]
   appEventDomainPrefix: string
   teamManagementTableName: string
-  // mockupSlackChannelId: string
 }
 
 export class OpsHealthAgentStack extends cdk.Stack {
@@ -320,11 +319,9 @@ export class OpsHealthAgentStack extends cdk.Stack {
     const oheroChatSfn = new sfn.StateMachine(this, 'OheroChatIntegration', {
       definitionBody: sfn.DefinitionBody.fromString(fs.readFileSync(path.join(__dirname, '../state-machine/ai-chat.asl')).toString().trim()),
       definitionSubstitutions: {
-        "OpsHealthKnowledgeBaseIdPlaceHolder": opsHealthKnowledgeBase.knowledgeBaseId,
         "InvokeBedRockAgentFunctionNamePlaceholder": invokeOheroActFunction.functionName,
         "SlackChannelIdPlaceholder": props.slackChannelId,
         "ChatUserSessionsTableNamePlaceholder": chatUserSessionsTable.tableName,
-        "LlmModelArnPlaceholder": `arn:aws:bedrock:${cdk.Aws.REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
         "AppEventBusPlaceholder": props.oheroEventBus.eventBusName,
         "AppEventDomainPrefixPlaceholder": props.appEventDomainPrefix
       },

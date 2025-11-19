@@ -40,7 +40,7 @@ export class OpsEventLakeStack extends cdk.Stack {
 
     firehosePolicy.attachToRole(firehoseDeliveryRole);
 
-    const eventLakeFirehose = new fh.CfnDeliveryStream(this, 'OpsEventLakeFirehose', {
+    const cfnDeliveryStream = new fh.CfnDeliveryStream(this, 'OpsEventLakeFirehose', {
       extendedS3DestinationConfiguration: {
         bucketArn: props.opsEventBucketArn,
         bufferingHints: {
@@ -78,6 +78,13 @@ export class OpsEventLakeStack extends cdk.Stack {
       }
     });
 
+    // Wrap the CfnDeliveryStream as IDeliveryStream for use with FirehoseDeliveryStream target
+    const eventLakeFirehose = fh.DeliveryStream.fromDeliveryStreamArn(
+      this,
+      'OpsEventLakeFirehoseRef',
+      `arn:aws:firehose:${this.region}:${this.account}:deliverystream/${cfnDeliveryStream.ref}`
+    );
+
     const eventLakeRule = new events.Rule(this, 'OpsEventLakeRule', {
       eventBus: props.oheroEventBus,
       eventPattern: {
@@ -89,7 +96,7 @@ export class OpsEventLakeStack extends cdk.Stack {
       },
       ruleName: 'OpsEventLakeRule',
       description: 'Archive operational events received',
-      targets: [new evtTargets.KinesisFirehoseStream(eventLakeFirehose)]
+      targets: [new evtTargets.FirehoseDeliveryStream(eventLakeFirehose)]
     });
     /******************************************************************************* */
 
