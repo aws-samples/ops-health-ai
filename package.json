@@ -17,8 +17,6 @@
     "@aws-sdk/client-bedrock-runtime": "^3.930.0",
     "@aws-sdk/client-dynamodb": "^3.930.0",
     "@aws-sdk/client-eventbridge": "^3.930.0",
-    "@aws-sdk/client-kendra": "^3.930.0",
-    "@aws-sdk/client-qbusiness": "^3.930.0",
     "@aws-sdk/client-s3": "^3.930.0",
     "@aws-sdk/client-sfn": "^3.930.0",
     "@aws-sdk/client-sts": "^3.930.0",
@@ -29,7 +27,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "24.10.1",
     "@types/uuid": "^11.0.0",
-    "aws-cdk": "2.1031.2",
+    "aws-cdk": "2.1114.1",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
@@ -37,7 +35,7 @@
     "uuid": "^13.0.0"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.223.0",
+    "aws-cdk-lib": "2.245.0",
     "aws-sdk": "^2.1692.0",
     "constructs": "^10.4.3",
     "dotenv": "^17.2.3",
