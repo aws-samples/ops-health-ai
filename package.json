@@ -35,7 +35,7 @@
     "uuid": "^13.0.0"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.245.0",
+    "aws-cdk-lib": "2.260.0",
     "aws-sdk": "^2.1692.0",
     "constructs": "^10.4.3",
     "dotenv": "^17.2.3",
